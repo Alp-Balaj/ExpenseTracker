@@ -5,10 +5,10 @@ using AutoMapper;
 
 namespace ExpenseTracker.API.Controllers
 {
-    public class IncomeController : BaseController<Income, IncomeDTO>
+    public class SavingController : BaseController<Saving, SavingDTO>
     {
-        public IncomeController(IUnitOfWork unitOfWork, IMapper mapper)
-            : base(unitOfWork, mapper, unitOfWork.Incomes)
+        public SavingController(IUnitOfWork unitOfWork, IMapper mapper)
+            : base(unitOfWork, mapper, unitOfWork.Savings)
         {
         }
     }

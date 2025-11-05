@@ -6,6 +6,8 @@ namespace ExpenseTracker.Domain.Interfaces
     {
         IRepository<Expense> Expenses { get; }
         IRepository<Income> Incomes { get; }
+        IRepository<Saving> Savings { get; }
+        IRepository<FutureExpense> FutureExpenses { get; }
         Task<int> SaveAsync();
     }
 }

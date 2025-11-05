@@ -13,6 +13,13 @@ namespace ExpenseTracker.Application.Mapping
 
             CreateMap<Income, IncomeDTO>().ReverseMap();
             CreateMap<IncomeDTO, Income>().ReverseMap();
+
+            CreateMap<SavingDTO, Saving>().ReverseMap();
+            CreateMap<Saving, SavingDTO>().ReverseMap();
+
+            CreateMap<FutureExpense, FutureExpenseDTO>().ReverseMap();
+            CreateMap<FutureExpenseDTO, FutureExpense>().ReverseMap();
+
         }
     }
 }
