@@ -14,9 +14,6 @@ namespace ExpenseTracker.Infrastructure.Persistence.Configurations
             builder.Property(i => i.Source)
                    .IsRequired()
                    .HasMaxLength(100);
-
-            builder.Property(i => i.Category)
-                   .HasMaxLength(50);
         }
     }
 }
