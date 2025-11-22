@@ -1,5 +1,8 @@
 ﻿using ExpenseTracker.Application.DependencyInjection;
+using ExpenseTracker.Application.Interfaces;
 using ExpenseTracker.Application.Mapping;
+using ExpenseTracker.Domain.Entities.User.UserService;
+using ExpenseTracker.Domain.User;
 using ExpenseTracker.Infrastructure.DependencyInjections;
 using ExpenseTracker.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -17,14 +20,12 @@ builder.Services.AddSwaggerGen(options =>
     options.SwaggerDoc("v1", new OpenApiInfo { Title = "Expense Tracker API", Version = "v1" });
 });
 
-//AutoMapper
 builder.Services.AddAutoMapper(cfg =>
 {
     cfg.AddProfile<MappingProfile>();
 });
 
-//Identity
-builder.Services.AddIdentity<IdentityUser, IdentityRole>()
+builder.Services.AddIdentity<User, IdentityRole>()
     .AddEntityFrameworkStores<ApplicationDbContext>()
     .AddDefaultTokenProviders();
 
@@ -52,6 +53,7 @@ builder.Services.AddAuthentication(options =>
 });
 
 builder.Services.AddApplicationServices();
+builder.Services.AddScoped<IUserServices, UserService>();
 builder.Services.AddInfrastructureServices(builder.Configuration);
 
 builder.Services.AddCors(options =>

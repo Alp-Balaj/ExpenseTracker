@@ -9,10 +9,27 @@ namespace ExpenseTracker.Infrastructure.Persistence.Configurations
         public void Configure(EntityTypeBuilder<Saving> builder)
         {
             builder.Property(s => s.Amount)
-                   .HasPrecision(18, 2);
+                   .HasPrecision(18, 2)
+                   .IsRequired();
 
-            builder.Property(s => s.Category)
-                   .HasMaxLength(50);
+            builder.Property(s => s.Date)
+                   .IsRequired();
+
+            builder.Property(s => s.Description)
+                   .HasMaxLength(500);
+
+            builder.HasOne(s => s.Account)
+                   .WithMany(a => a.Savings)
+                   .HasForeignKey(s => s.AccountId)
+                   .IsRequired(true)
+                   .OnDelete(DeleteBehavior.Restrict);
+
+            // Category relationship (optional)
+            builder.HasOne(s => s.Category)
+                   .WithMany(c => c.Savings)
+                   .HasForeignKey(s => s.CategoryId)
+                   .IsRequired(false)
+                   .OnDelete(DeleteBehavior.SetNull);
         }
     }
 }

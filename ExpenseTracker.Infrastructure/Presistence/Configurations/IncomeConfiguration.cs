@@ -9,11 +9,26 @@ namespace ExpenseTracker.Infrastructure.Persistence.Configurations
         public void Configure(EntityTypeBuilder<Income> builder)
         {
             builder.Property(i => i.Amount)
-                   .HasPrecision(18, 2);
+                   .HasPrecision(18, 2)
+                   .IsRequired();
 
-            builder.Property(i => i.Source)
+            builder.Property(i => i.Description)
+                   .HasMaxLength(500);
+
+            builder.Property(i => i.Date)
+                   .IsRequired();
+
+            builder.HasOne(i => i.Account)
+                   .WithMany(a => a.Incomes)
+                   .HasForeignKey(i => i.AccountId)
                    .IsRequired()
-                   .HasMaxLength(100);
+                   .OnDelete(DeleteBehavior.Restrict);
+
+            builder.HasOne(i => i.Source)
+                   .WithMany(c => c.Incomes)
+                   .HasForeignKey(i => i.CategoryId)
+                   .IsRequired(false)
+                   .OnDelete(DeleteBehavior.SetNull);
         }
     }
 }

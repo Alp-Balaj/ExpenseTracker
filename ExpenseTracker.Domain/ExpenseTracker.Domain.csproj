@@ -21,6 +21,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Folder Include="Entities\User\SeedConfiguration\" />
     <Folder Include="Enums\" />
   </ItemGroup>
 
