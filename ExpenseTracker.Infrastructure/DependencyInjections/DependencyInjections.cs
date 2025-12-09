@@ -1,5 +1,7 @@
-﻿using ExpenseTracker.Domain.Interfaces;
+﻿using ExpenseTracker.Application.Interfaces;
+using ExpenseTracker.Domain.Interfaces;
 using ExpenseTracker.Infrastructure.Persistence;
+using ExpenseTracker.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -15,6 +17,9 @@ namespace ExpenseTracker.Infrastructure.DependencyInjections
                     b => b.MigrationsAssembly(typeof(ApplicationDbContext).Assembly.FullName)));
 
             services.AddScoped<IUnitOfWork, UnitOfWork>();
+
+            services.AddHttpContextAccessor();
+            services.AddScoped<IUserServices, UserServices>();
 
             return services;
         }

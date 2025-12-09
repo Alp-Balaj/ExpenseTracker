@@ -2,13 +2,13 @@
 using System.Security.Claims;
 using ExpenseTracker.Application.Interfaces;
 
-namespace ExpenseTracker.Domain.Entities.User.UserService
+namespace ExpenseTracker.Infrastructure.Services
 {
-    public class UserService : IUserServices
+    public class UserServices : IUserServices
     {
         private readonly IHttpContextAccessor _httpContextAccessor;
 
-        public UserService(IHttpContextAccessor httpContextAccessor)
+        public UserServices(IHttpContextAccessor httpContextAccessor)
         {
             _httpContextAccessor = httpContextAccessor;
         }

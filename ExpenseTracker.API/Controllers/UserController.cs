@@ -4,6 +4,7 @@ using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using ExpenseTracker.Domain.User;
 
 
 namespace ExpenseTracker.API.Controllers
@@ -13,10 +14,10 @@ namespace ExpenseTracker.API.Controllers
     [Route("api/[controller]")]
     public class UserController : ControllerBase
     {
-        private readonly UserManager<IdentityUser> _userManager;
+        private readonly UserManager<User> _userManager;
         private readonly IConfiguration _configuration;
 
-        public UserController(UserManager<IdentityUser> userManager, IConfiguration configuration)
+        public UserController(UserManager<User> userManager, IConfiguration configuration)
         {
             _userManager = userManager;
             _configuration = configuration;
@@ -25,7 +26,7 @@ namespace ExpenseTracker.API.Controllers
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterDto model)
         {
-            var user = new IdentityUser { UserName = model.Email, Email = model.Email };
+            var user = new User { FirstName = model.FirstName, LastName = model.LastName, UserName = model.FirstName + model.LastName, Email = model.Email };
             var result = await _userManager.CreateAsync(user, model.Password);
             if (!result.Succeeded)
                 return BadRequest(result.Errors);
@@ -44,12 +45,13 @@ namespace ExpenseTracker.API.Controllers
             return Ok(new { Token = token });
         }
 
-        private string GenerateJwtToken(IdentityUser user)
+        private string GenerateJwtToken(User user)
         {
             var claims = new[]
             {
                 new Claim(JwtRegisteredClaimNames.Sub, user.Id),
                 new Claim(JwtRegisteredClaimNames.Email, user.Email),
+                new Claim(JwtRegisteredClaimNames.UniqueName, user.UserName),
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
             };
 
@@ -69,6 +71,7 @@ namespace ExpenseTracker.API.Controllers
         }
     }
 
-    public record RegisterDto(string Email, string Password);
+    public record RegisterDto(string FirstName, string LastName, string Email, string Password);
     public record LoginDto(string Email, string Password);
 }
+    
