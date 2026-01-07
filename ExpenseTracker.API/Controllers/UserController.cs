@@ -23,10 +23,34 @@ namespace ExpenseTracker.API.Controllers
             _configuration = configuration;
         }
 
-        [HttpPost("register")]
-        public async Task<IActionResult> Register([FromBody] RegisterDto model)
+        [HttpPost("signup")]
+        public async Task<IActionResult> SignUp([FromBody] RegisterDto model)
         {
             var user = new User { FirstName = model.FirstName, LastName = model.LastName, UserName = model.FirstName + model.LastName, Email = model.Email };
+                
+            if(user.UserName == null)
+            {
+                return BadRequest();
+            }
+
+            if(!await CheckValidityOfUsername(user.UserName))
+            {
+                var rng = Random.Shared;
+                int attempts = 0;
+                string baseUsername = user.UserName;
+
+                user.UserName = baseUsername + rng.Next(10, 9999);
+
+                while (!await CheckValidityOfUsername(user.UserName))
+                {
+                    user.UserName = baseUsername + rng.Next(10, 9999);
+                    attempts++;
+
+                    if (attempts > 10)
+                        throw new Exception("Could not generate a unique username");
+                }
+            }
+
             var result = await _userManager.CreateAsync(user, model.Password);
             if (!result.Succeeded)
                 return BadRequest(result.Errors);
@@ -69,6 +93,12 @@ namespace ExpenseTracker.API.Controllers
 
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
+
+        private async Task<bool> CheckValidityOfUsername(string username)
+        {
+            return await _userManager.FindByNameAsync(username) == null;
+        }
+
     }
 
     public record RegisterDto(string FirstName, string LastName, string Email, string Password);

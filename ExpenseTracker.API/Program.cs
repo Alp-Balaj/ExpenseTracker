@@ -8,7 +8,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
-#region Costum Services and configurations
+#region Costum Services and Configurations
 
 //Identity and JWT
 builder.Services.AddAuthServices(builder.Configuration);
