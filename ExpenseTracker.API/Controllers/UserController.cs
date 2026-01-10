@@ -27,7 +27,7 @@ namespace ExpenseTracker.API.Controllers
         public async Task<IActionResult> SignUp([FromBody] RegisterDto model)
         {
             var user = new User { FirstName = model.FirstName, LastName = model.LastName, UserName = model.FirstName + model.LastName, Email = model.Email };
-                
+            
             if(user.UserName == null)
             {
                 return BadRequest();

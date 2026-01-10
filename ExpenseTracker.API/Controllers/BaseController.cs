@@ -1,20 +1,21 @@
-﻿using ExpenseTracker.Domain.Interfaces;
+﻿using AutoMapper;
+using ExpenseTracker.Domain.Entities.Common;
+using ExpenseTracker.Domain.Interfaces;
 using Microsoft.AspNetCore.Mvc;
-using AutoMapper;
 
 namespace ExpenseTracker.API.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
     public class BaseController<TEntity, TDto> : ControllerBase
-        where TEntity : class, new()
+        where TEntity : BaseEntity, new()
         where TDto : class
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
-        private readonly IRepository<TEntity> _repository;
+        private readonly IUserRelatedRepository<TEntity> _repository;
 
-        public BaseController(IUnitOfWork unitOfWork, IMapper mapper, IRepository<TEntity> repository)
+        public BaseController(IUnitOfWork unitOfWork, IMapper mapper, IUserRelatedRepository<TEntity> repository)
         {
             _unitOfWork = unitOfWork;
             _mapper = mapper;
@@ -24,7 +25,7 @@ namespace ExpenseTracker.API.Controllers
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
-            var entities = await _repository.GetAllAsync();
+            var entities = await _repository.GetAllUserDataAsync();
             var dtos = _mapper.Map<IEnumerable<TDto>>(entities);
             return Ok(dtos);
         }
@@ -32,7 +33,7 @@ namespace ExpenseTracker.API.Controllers
         [HttpGet("{id}")]
         public async Task<IActionResult> Get(Guid id)
         {
-            var entity = await _repository.GetByIdAsync(id);
+            var entity = await _repository.GetUserDataByIdAsync(id);
             if (entity == null) return NotFound();
             return Ok(_mapper.Map<TDto>(entity));
         }
@@ -49,11 +50,11 @@ namespace ExpenseTracker.API.Controllers
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(Guid id, [FromBody] TDto dto)
         {
-            var entity = await _repository.GetByIdAsync(id);
+            var entity = await _repository.GetUserDataByIdAsync(id);
             if (entity == null) return NotFound();
 
             _mapper.Map(dto, entity);
-            _repository.Update(entity);
+            _repository.UpdateUserData(entity);
             await _unitOfWork.SaveAsync();
             return NoContent();
         }
@@ -61,10 +62,10 @@ namespace ExpenseTracker.API.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(Guid id)
         {
-            var entity = await _repository.GetByIdAsync(id);
+            var entity = await _repository.GetUserDataByIdAsync(id);
             if (entity == null) return NotFound();
 
-            _repository.Delete(entity);
+            _repository.DeleteUserData(entity);
             await _unitOfWork.SaveAsync();
             return NoContent();
         }

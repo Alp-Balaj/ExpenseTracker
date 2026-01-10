@@ -16,10 +16,10 @@ namespace ExpenseTracker.Infrastructure.DependencyInjections
                 options.UseSqlServer(configuration.GetConnectionString("DefaultConnection"),
                     b => b.MigrationsAssembly(typeof(ApplicationDbContext).Assembly.FullName)));
 
-            services.AddScoped<IUnitOfWork, UnitOfWork>();
-
             services.AddHttpContextAccessor();
-            services.AddScoped<IUserServices, UserServices>();
+            services.AddScoped<IUserServices, CurrentUserServices>();
+
+            services.AddScoped<IUnitOfWork, UnitOfWork>();
 
             return services;
         }

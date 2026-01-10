@@ -4,11 +4,11 @@ using ExpenseTracker.Application.Interfaces;
 
 namespace ExpenseTracker.Infrastructure.Services
 {
-    public class UserServices : IUserServices
+    public class CurrentUserServices : IUserServices
     {
         private readonly IHttpContextAccessor _httpContextAccessor;
 
-        public UserServices(IHttpContextAccessor httpContextAccessor)
+        public CurrentUserServices(IHttpContextAccessor httpContextAccessor)
         {
             _httpContextAccessor = httpContextAccessor;
         }

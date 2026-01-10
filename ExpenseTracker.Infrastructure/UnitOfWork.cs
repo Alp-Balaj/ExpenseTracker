@@ -1,26 +1,36 @@
-﻿using ExpenseTracker.Domain.Entities;
+﻿using ExpenseTracker.Application.Interfaces;
+using ExpenseTracker.Domain.Entities;
 using ExpenseTracker.Domain.Interfaces;
 using ExpenseTracker.Infrastructure.Persistence;
 using ExpenseTracker.Infrastructure.Repositories;
+using ExpenseTracker.Infrastructure.Services;
 
 namespace ExpenseTracker.Infrastructure
 {
     public class UnitOfWork : IUnitOfWork
     {
         private readonly ApplicationDbContext _context;
+        private readonly IUserServices _currentUserServices;
+        public IUserRelatedRepository<Account> Accounts { get; }
+        public IUserRelatedRepository<Category> Categories { get; }
+        public IUserRelatedRepository<Currency> Currencies { get; }
+        public IUserRelatedRepository<Expense> Expenses { get; }
+        public IUserRelatedRepository<FutureExpense> FutureExpenses { get; }
+        public IUserRelatedRepository<Income> Incomes { get; }
+        public IUserRelatedRepository<Saving> Savings { get; }
 
-        public IRepository<Expense> Expenses { get; }
-        public IRepository<Income> Incomes { get; }
-        public IRepository<Saving> Savings { get; }
-        public IRepository<FutureExpense> FutureExpenses { get; }
-
-        public UnitOfWork(ApplicationDbContext context)
+        public UnitOfWork(ApplicationDbContext context, IUserServices currentUserServices)
         {
             _context = context;
-            Expenses = new Repository<Expense>(_context);
-            Incomes = new Repository<Income>(_context);
-            Savings = new Repository<Saving>(_context);
-            FutureExpenses = new Repository<FutureExpense>(_context);
+            _currentUserServices = currentUserServices;
+
+            Accounts = new UserRelatedRepository<Account>(_context, _currentUserServices);
+            Categories = new UserRelatedRepository<Category>(_context, _currentUserServices);
+            Currencies = new UserRelatedRepository<Currency>(_context, _currentUserServices);
+            Expenses = new UserRelatedRepository<Expense>(_context, _currentUserServices);
+            FutureExpenses = new UserRelatedRepository<FutureExpense>(_context, _currentUserServices);
+            Incomes = new UserRelatedRepository<Income>(_context, _currentUserServices);
+            Savings = new UserRelatedRepository<Saving>(_context, _currentUserServices);
         }
 
         public async Task<int> SaveAsync() => await _context.SaveChangesAsync();

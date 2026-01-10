@@ -4,10 +4,10 @@ namespace ExpenseTracker.Domain.Interfaces
 {
     public interface IUnitOfWork : IDisposable
     {
-        IRepository<Expense> Expenses { get; }
-        IRepository<Income> Incomes { get; }
-        IRepository<Saving> Savings { get; }
-        IRepository<FutureExpense> FutureExpenses { get; }
+        IUserRelatedRepository<Expense> Expenses { get; }
+        IUserRelatedRepository<Income> Incomes { get; }
+        IUserRelatedRepository<Saving> Savings { get; }
+        IUserRelatedRepository<FutureExpense> FutureExpenses { get; }
         Task<int> SaveAsync();
     }
 }
