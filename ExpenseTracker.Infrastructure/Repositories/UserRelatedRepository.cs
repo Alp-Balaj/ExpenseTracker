@@ -10,10 +10,10 @@ namespace ExpenseTracker.Infrastructure.Repositories
     public class UserRelatedRepository<T> : IUserRelatedRepository<T> where T : BaseEntity
     {
         private readonly ApplicationDbContext _context;
-        private readonly IUserServices _user;
+        private readonly ICurrentUserServices _user;
         private readonly DbSet<T> _dbSet;
 
-        public UserRelatedRepository(ApplicationDbContext context, IUserServices user)
+        public UserRelatedRepository(ApplicationDbContext context, ICurrentUserServices user)
         {
             _context = context;
             _user = user;

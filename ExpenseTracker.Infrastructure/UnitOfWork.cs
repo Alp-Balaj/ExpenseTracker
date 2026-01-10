@@ -10,7 +10,7 @@ namespace ExpenseTracker.Infrastructure
     public class UnitOfWork : IUnitOfWork
     {
         private readonly ApplicationDbContext _context;
-        private readonly IUserServices _currentUserServices;
+        private readonly ICurrentUserServices _currentUserServices;
         public IUserRelatedRepository<Account> Accounts { get; }
         public IUserRelatedRepository<Category> Categories { get; }
         public IUserRelatedRepository<Currency> Currencies { get; }
@@ -19,7 +19,7 @@ namespace ExpenseTracker.Infrastructure
         public IUserRelatedRepository<Income> Incomes { get; }
         public IUserRelatedRepository<Saving> Savings { get; }
 
-        public UnitOfWork(ApplicationDbContext context, IUserServices currentUserServices)
+        public UnitOfWork(ApplicationDbContext context, ICurrentUserServices currentUserServices)
         {
             _context = context;
             _currentUserServices = currentUserServices;

@@ -1,6 +1,6 @@
 ﻿namespace ExpenseTracker.Application.Interfaces
 {
-    public interface IUserServices
+    public interface ICurrentUserServices
     {
         /// <summary>
         /// Gets the currently authenticated user's ID.

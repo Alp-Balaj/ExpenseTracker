@@ -4,7 +4,7 @@ using ExpenseTracker.Application.Interfaces;
 
 namespace ExpenseTracker.Infrastructure.Services
 {
-    public class CurrentUserServices : IUserServices
+    public class CurrentUserServices : ICurrentUserServices
     {
         private readonly IHttpContextAccessor _httpContextAccessor;
 

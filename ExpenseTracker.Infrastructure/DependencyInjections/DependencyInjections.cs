@@ -17,7 +17,7 @@ namespace ExpenseTracker.Infrastructure.DependencyInjections
                     b => b.MigrationsAssembly(typeof(ApplicationDbContext).Assembly.FullName)));
 
             services.AddHttpContextAccessor();
-            services.AddScoped<IUserServices, CurrentUserServices>();
+            services.AddScoped<ICurrentUserServices, CurrentUserServices>();
 
             services.AddScoped<IUnitOfWork, UnitOfWork>();
 
