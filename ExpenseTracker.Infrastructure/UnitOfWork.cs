@@ -3,7 +3,6 @@ using ExpenseTracker.Domain.Entities;
 using ExpenseTracker.Domain.Interfaces;
 using ExpenseTracker.Infrastructure.Persistence;
 using ExpenseTracker.Infrastructure.Repositories;
-using ExpenseTracker.Infrastructure.Services;
 
 namespace ExpenseTracker.Infrastructure
 {

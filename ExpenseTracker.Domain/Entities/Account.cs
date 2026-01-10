@@ -5,6 +5,7 @@ namespace ExpenseTracker.Domain.Entities
 {
     public class Account : BaseEntity
     {
+        public Guid Id { get; set; }
         public string Name { get; set; }
         public AmountType AmountType { get; set; }
         public decimal Balance { get; set; }

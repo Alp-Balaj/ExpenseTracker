@@ -5,9 +5,9 @@ using ExpenseTracker.Domain.Interfaces;
 
 namespace ExpenseTracker.API.Controllers
 {
-    public class AccountsController : BaseController<Account, AccountDTO>
+    public class AccountController : BaseController<Account, AccountDTO>
     {
-        public AccountsController(IUnitOfWork uow, IUserRelatedRepository<Account> repo)
+        public AccountController(IUnitOfWork uow, IUserRelatedRepository<Account> repo)
             : base(uow, repo) { }
         protected override AccountDTO ToDto(Account entity) => entity.ToDto();
         protected override Account ToEntity(AccountDTO dto) => dto.ToEntity();

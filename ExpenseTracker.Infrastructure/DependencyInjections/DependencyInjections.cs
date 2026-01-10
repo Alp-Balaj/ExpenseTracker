@@ -1,6 +1,7 @@
 ﻿using ExpenseTracker.Application.Interfaces;
 using ExpenseTracker.Domain.Interfaces;
 using ExpenseTracker.Infrastructure.Persistence;
+using ExpenseTracker.Infrastructure.Repositories;
 using ExpenseTracker.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -20,6 +21,8 @@ namespace ExpenseTracker.Infrastructure.DependencyInjections
             services.AddScoped<ICurrentUserServices, CurrentUserServices>();
 
             services.AddScoped<IUnitOfWork, UnitOfWork>();
+
+            services.AddScoped(typeof(IUserRelatedRepository<>), typeof(UserRelatedRepository<>));
 
             return services;
         }

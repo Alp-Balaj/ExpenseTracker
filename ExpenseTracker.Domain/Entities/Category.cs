@@ -10,7 +10,6 @@ namespace ExpenseTracker.Domain.Entities
         public CategoryType CategoryType { get; set; }
         public string? Color { get; set; }
 
-
         public ICollection<Expense> Expenses { get; set; } = new List<Expense>();
         public ICollection<Income> Incomes { get; set; } = new List<Income>();
         public ICollection<Saving> Savings { get; set; } = new List<Saving>();

@@ -1,15 +1,17 @@
 ﻿using ExpenseTracker.Application.DTOs;
+using ExpenseTracker.Application.Mapping;
 using ExpenseTracker.Domain.Entities;
 using ExpenseTracker.Domain.Interfaces;
-using AutoMapper;
+using Microsoft.VisualBasic;
 
 namespace ExpenseTracker.API.Controllers
 {
-    public class SavingController : BaseController<Saving, SavingDTO>
+    public class SavingsController : BaseController<Saving, SavingDTO>
     {
-        public SavingController(IUnitOfWork unitOfWork, IMapper mapper)
-            : base(unitOfWork, mapper, unitOfWork.Savings)
-        {
-        }
+        public SavingsController(IUnitOfWork uow, IUserRelatedRepository<Saving> repo)
+            : base(uow, repo) { }
+        protected override SavingDTO ToDto(Saving entity) => entity.ToDto();
+        protected override Saving ToEntity(SavingDTO dto) => dto.ToEntity();
+        protected override void ApplyUpdates(Saving entity, SavingDTO dto) => entity.Apply(dto);
     }
 }

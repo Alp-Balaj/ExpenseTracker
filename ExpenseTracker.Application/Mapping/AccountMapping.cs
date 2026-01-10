@@ -1,9 +1,6 @@
 ﻿using ExpenseTracker.Application.DTOs;
 using ExpenseTracker.Domain.Entities;
 using ExpenseTracker.Shared.Enums;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 namespace ExpenseTracker.Application.Mapping
 {
     public static class AccountMapping
@@ -12,8 +9,9 @@ namespace ExpenseTracker.Application.Mapping
         {
             return new AccountDTO
             {
+                Id = account.Id,
                 Name = account.Name,
-                TypeId = (int)account.AmountType,
+                AmountTypeId = (int)account.AmountType,
                 BalanceCurrencyId = account.BalanceCurrencyId,
             };
         }
@@ -22,14 +20,14 @@ namespace ExpenseTracker.Application.Mapping
             return new Account
             {
                 Name = accountDTO.Name,
-                AmountType = (AmountType)accountDTO.TypeId,
+                AmountType = (AmountType)accountDTO.AmountTypeId,
                 BalanceCurrencyId = accountDTO.BalanceCurrencyId,
             };
         }
         public static void Apply(this Account entity, AccountDTO dto)
         {
             entity.Name = dto.Name;
-            entity.AmountType = (AmountType)dto.TypeId;
+            entity.AmountType = (AmountType)dto.AmountTypeId;
             entity.BalanceCurrencyId = dto.BalanceCurrencyId;
         }
     }
