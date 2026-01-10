@@ -14,7 +14,7 @@ namespace ExpenseTracker.Infrastructure.Persistence.Configurations
                 .IsRequired()
                 .HasMaxLength(100);
 
-            builder.Property(a => a.Type)
+            builder.Property(a => a.AmountType)
                 .IsRequired();
 
             builder.Property(a => a.Balance)

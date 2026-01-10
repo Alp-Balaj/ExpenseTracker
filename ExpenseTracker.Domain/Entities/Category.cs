@@ -1,5 +1,4 @@
 ﻿using ExpenseTracker.Domain.Entities.Common;
-using System.ComponentModel;
 using ExpenseTracker.Shared.Enums;
 
 namespace ExpenseTracker.Domain.Entities

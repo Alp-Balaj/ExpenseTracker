@@ -9,8 +9,6 @@ namespace ExpenseTracker.Application.DependencyInjection
         
         public static IServiceCollection AddApplicationServices(this IServiceCollection services)
         {
-            services.AddAutoMapper(cfg => cfg.AddProfile<MappingProfile>());
-
             return services;
         }
     }
