@@ -2,9 +2,9 @@
 {
     public enum CategoryType
     {
-        Expense,
-        Income,
-        Savings,
-        FutureExpense
+        Expense = 0,
+        Income = 1,
+        Savings = 2,
+        FutureExpense = 3
     }
 }

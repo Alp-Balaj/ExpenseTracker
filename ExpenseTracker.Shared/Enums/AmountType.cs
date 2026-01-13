@@ -8,7 +8,7 @@ namespace ExpenseTracker.Shared.Enums
 {
     public enum AmountType
     {
-        Cash,
-        Bank
+        Cash = 0,
+        Bank = 1
     }
 }
