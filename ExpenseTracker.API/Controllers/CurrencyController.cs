@@ -2,9 +2,14 @@
 using ExpenseTracker.Application.Mapping;
 using ExpenseTracker.Domain.Entities;
 using ExpenseTracker.Domain.Interfaces;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 
 namespace ExpenseTracker.API.Controllers
 {
+    [Authorize]
+    [ApiController]
+    [Route("api/[controller]")]
     public class CurrencyController : BaseController<Currency, CurrencyDTO>
     {
         public CurrencyController(IUnitOfWork uow, IUserRelatedRepository<Currency> repo)

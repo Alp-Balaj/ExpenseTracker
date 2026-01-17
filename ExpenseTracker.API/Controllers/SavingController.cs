@@ -2,13 +2,17 @@
 using ExpenseTracker.Application.Mapping;
 using ExpenseTracker.Domain.Entities;
 using ExpenseTracker.Domain.Interfaces;
-using Microsoft.VisualBasic;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 
 namespace ExpenseTracker.API.Controllers
 {
-    public class SavingsController : BaseController<Saving, SavingDTO>
+    [Authorize]
+    [ApiController]
+    [Route("api/[controller]")]
+    public class SavingController : BaseController<Saving, SavingDTO>
     {
-        public SavingsController(IUnitOfWork uow, IUserRelatedRepository<Saving> repo)
+        public SavingController(IUnitOfWork uow, IUserRelatedRepository<Saving> repo)
             : base(uow, repo) { }
         protected override SavingDTO ToDto(Saving entity) => entity.ToDto();
         protected override Saving ToEntity(SavingDTO dto) => dto.ToEntity();

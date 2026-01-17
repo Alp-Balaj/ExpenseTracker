@@ -14,8 +14,7 @@ namespace ExpenseTracker.Infrastructure.Services
         }
 
         public string UserId =>
-            _httpContextAccessor.HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier)
-            ?? throw new Exception("User not authenticated");
+            _httpContextAccessor.HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier);
 
         public string UserName =>
         _httpContextAccessor.HttpContext?.User.FindFirstValue(ClaimTypes.Name)

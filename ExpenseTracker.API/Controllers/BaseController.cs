@@ -1,11 +1,11 @@
 ﻿using ExpenseTracker.Domain.Entities.Common;
 using ExpenseTracker.Domain.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ExpenseTracker.API.Controllers
 {
-    [ApiController]
-    [Route("api/[controller]")]
+    [Authorize]
     public abstract class BaseController<TEntity, TDto> : ControllerBase
         where TEntity : BaseEntity, new()
         where TDto : class
