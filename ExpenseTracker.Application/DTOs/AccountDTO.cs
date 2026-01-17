@@ -2,7 +2,7 @@
 {
     public class AccountDTO
     {
-        public Guid Id { get; set; }
+        public Guid? Id { get; set; }
         public string Name { get; set; }
         public int AmountTypeId { get; set; }
         public decimal Balance { get; set; }
