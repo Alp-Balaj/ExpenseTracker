@@ -24,6 +24,8 @@ namespace ExpenseTracker.Infrastructure.DependencyInjections
 
             services.AddScoped(typeof(IUserRelatedRepository<>), typeof(UserRelatedRepository<>));
 
+            services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
+
             return services;
         }
     }

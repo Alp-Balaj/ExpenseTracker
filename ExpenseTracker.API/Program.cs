@@ -28,8 +28,8 @@ var app = builder.Build();
 app.UseCustomSwagger(app.Environment.IsDevelopment());
 
 app.UseExceptionHandler("/error");
-if (!app.Environment.IsDevelopment())
-    app.UseHttpsRedirection();
+
+app.UseHttpsRedirection();
 
 app.UseCors("ReactCors");
 app.UseAuthentication();

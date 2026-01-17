@@ -1,4 +1,4 @@
-﻿using ExpenseTracker.Domain.User;
+﻿using ExpenseTracker.Domain.Entities.User;
 using ExpenseTracker.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;

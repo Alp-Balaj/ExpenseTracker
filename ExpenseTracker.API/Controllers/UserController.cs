@@ -1,10 +1,12 @@
-﻿using Microsoft.AspNetCore.Identity;
+﻿using ExpenseTracker.Domain.Entities.User;
+using ExpenseTracker.Domain.Interfaces;
+using ExpenseTracker.Infrastructure.Security;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
-using ExpenseTracker.Domain.User;
 
 
 namespace ExpenseTracker.API.Controllers
@@ -16,13 +18,16 @@ namespace ExpenseTracker.API.Controllers
     {
         private readonly UserManager<User> _userManager;
         private readonly IConfiguration _configuration;
+        private readonly IRefreshTokenRepository _refreshTokenRepository;
 
-        public UserController(UserManager<User> userManager, IConfiguration configuration)
+        public UserController(UserManager<User> userManager, IConfiguration configuration, IRefreshTokenRepository refreshTokenRepository)
         {
             _userManager = userManager;
             _configuration = configuration;
+            _refreshTokenRepository = refreshTokenRepository;
         }
 
+        #region API calls
         [HttpPost("signup")]
         public async Task<IActionResult> SignUp([FromBody] RegisterDto model)
         {
@@ -65,10 +70,118 @@ namespace ExpenseTracker.API.Controllers
             if (user == null || !await _userManager.CheckPasswordAsync(user, model.Password))
                 return Unauthorized("Invalid credentials");
 
+            // JWT
             var token = GenerateJwtToken(user);
+
+            // Refresh Token
+            var rawRefreshToken = TokenUtil.GenerateRefreshToken();
+
+            var pepper = _configuration["RefreshToken:Pepper"];
+            var refreshTokenHash = TokenUtil.HashRefreshToken(rawRefreshToken, pepper);
+
+            var daysStr = _configuration["RefreshToken:Longevity"];
+            var days = int.TryParse(daysStr, out var d) ? d : 14;
+            var refreshExpiresUtc = DateTime.UtcNow.AddDays(days);
+
+            // Add hashed refresh to db
+            await _refreshTokenRepository.AddAsync(new RefreshToken
+            {
+                Id = Guid.NewGuid(),
+                UserId = user.Id,
+                TokenHash = refreshTokenHash,
+                CreatedAtUtc = DateTime.UtcNow,
+                ExpiresAtUtc = refreshExpiresUtc
+            });
+
+            // Add raw refresh in HttpOnly cookie
+            SetRefreshCookie(rawRefreshToken, refreshExpiresUtc);
+
             return Ok(new { Token = token });
         }
 
+        [HttpPost("refresh")]
+        public async Task<IActionResult> Refresh()
+        {
+            // Get raw refresh token from HttpOnly cookie
+            if (!Request.Cookies.TryGetValue("refresh_token", out var rawToken) || string.IsNullOrWhiteSpace(rawToken))
+                return Unauthorized("Missing refresh token");
+
+            // Hash it
+            var pepper = _configuration["RefreshToken:Pepper"];
+            var tokenHash = TokenUtil.HashRefreshToken(rawToken, pepper);
+
+            // Find it
+            var existing = await _refreshTokenRepository.GetByHashAsync(tokenHash);
+            if (existing == null)
+            {
+                ClearRefreshCookie();
+                return Unauthorized("Invalid refresh token");
+            }
+
+            // Validate it
+            if (!existing.IsActive)
+            {
+                ClearRefreshCookie();
+                return Unauthorized("Expired or revoked refresh token");
+            }
+
+            // Load user
+            var user = await _userManager.FindByIdAsync(existing.UserId);
+            if (user == null)
+            {
+                ClearRefreshCookie();
+                return Unauthorized("User not found");
+            }
+
+            // Generate new one
+            var newRaw = TokenUtil.GenerateRefreshToken();
+            var newHash = TokenUtil.HashRefreshToken(newRaw, pepper);
+
+            var daysStr = _configuration["RefreshToken:Longevity"];
+            var days = int.TryParse(daysStr, out var d) ? d : 14;
+            var newExpiresUtc = DateTime.UtcNow.AddDays(days);
+
+            await _refreshTokenRepository.RevokeAsync(existing, replacedByTokenHash: newHash);
+
+            await _refreshTokenRepository.AddAsync(new RefreshToken
+            {
+                Id = Guid.NewGuid(),
+                UserId = user.Id,
+                TokenHash = newHash,
+                CreatedAtUtc = DateTime.UtcNow,
+                ExpiresAtUtc = newExpiresUtc
+            });
+
+            SetRefreshCookie(newRaw, newExpiresUtc);
+
+            // Issue new access token
+            var newAccessToken = GenerateJwtToken(user);
+
+            return Ok(new { Token = newAccessToken });
+        }
+        
+        [HttpPost("logout")]
+        public async Task<IActionResult> Logout()
+        {
+            if (Request.Cookies.TryGetValue("refresh_token", out var raw) &&
+                !string.IsNullOrWhiteSpace(raw))
+            {
+                var pepper = _configuration["RefreshToken:Pepper"];
+                var hash = TokenUtil.HashRefreshToken(raw, pepper);
+
+                var existing = await _refreshTokenRepository.GetByHashAsync(hash);
+                if (existing != null && existing.RevokedAtUtc == null)
+                {
+                    await _refreshTokenRepository.RevokeAsync(existing);
+                }
+            }
+
+            ClearRefreshCookie();
+            return Ok();
+        }
+
+        #endregion
+        #region Helper functions
         private string GenerateJwtToken(User user)
         {
             var claims = new[]
@@ -94,11 +207,36 @@ namespace ExpenseTracker.API.Controllers
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
 
+        private void SetRefreshCookie(string rawRefreshToken, DateTime expiresUtc)
+        {
+            Response.Cookies.Append("refresh_token", rawRefreshToken, new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = true,
+                SameSite = SameSiteMode.None,
+                Expires = expiresUtc,
+                Path = "/api/User/refresh"
+            });
+        }
+
+        private void ClearRefreshCookie()
+        {
+            Response.Cookies.Append("refresh_token", "", new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = true,
+                SameSite = SameSiteMode.None,
+                Expires = DateTime.UtcNow.AddDays(-1),
+                Path = "/api/User/refresh"
+            });
+        }
+
         private async Task<bool> CheckValidityOfUsername(string username)
         {
             return await _userManager.FindByNameAsync(username) == null;
         }
 
+        #endregion
     }
 
     public record RegisterDto(string FirstName, string LastName, string Email, string Password);

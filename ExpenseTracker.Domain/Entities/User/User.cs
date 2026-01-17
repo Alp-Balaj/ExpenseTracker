@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Identity;
 
-namespace ExpenseTracker.Domain.User
+namespace ExpenseTracker.Domain.Entities.User
 {
     public class User : IdentityUser
     {

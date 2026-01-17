@@ -1,6 +1,5 @@
 ﻿using ExpenseTracker.Domain.Entities;
-using ExpenseTracker.Domain.User;
-using Microsoft.AspNetCore.Identity;
+using ExpenseTracker.Domain.Entities.User;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
@@ -20,6 +19,7 @@ namespace ExpenseTracker.Infrastructure.Persistence
         public DbSet<FutureExpense> FutureExpenses { get; set; }
         public DbSet<Income> Incomes { get; set; }
         public DbSet<Saving> Savings { get; set; }
+        public DbSet<RefreshToken> RefreshTokens { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

@@ -1,12 +1,12 @@
-﻿using ExpenseTracker.Domain.User.JWTFeatures;
+﻿using ExpenseTracker.Domain.Entities.User;
 
 namespace ExpenseTracker.Domain.Interfaces
 {
-    public interface IRefreshTokenRepository : IRepository<RefreshToken>
+    public interface IRefreshTokenRepository
     {
-        Task SaveRefreshTokenAsync(string userId, string refreshToken);
-        Task<RefreshToken> GetRefreshTokenAsync(string refreshToken);
-        Task DeleteRefreshTokenAsync(string refreshToken);
+        Task AddAsync(RefreshToken token);
+        Task<RefreshToken?> GetByHashAsync(string tokenHash);
+        Task RevokeAsync(RefreshToken token, string? replacedByTokenHash = null);
+        Task RevokeAllActiveForUserAsync(string userId);
     }
-
 }
