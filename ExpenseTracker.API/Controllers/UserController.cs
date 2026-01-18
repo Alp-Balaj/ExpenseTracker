@@ -192,13 +192,23 @@ namespace ExpenseTracker.API.Controllers
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
             };
 
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]));
+            var keyString = _configuration["Jwt:Key"]
+                ?? throw new InvalidOperationException("Jwt:Key is not configured");
+
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(keyString));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
             var expires = DateTime.UtcNow.AddMinutes(60);
 
+            var issuer = _configuration["Jwt:Issuer"]
+                ?? throw new InvalidOperationException("Jwt:Issuer is not configured");
+
+            var audience = _configuration["Jwt:Audience"]
+                ?? throw new InvalidOperationException("Jwt:Audience is not configured");
+
+
             var token = new JwtSecurityToken(
-                issuer: _configuration["Jwt:Issuer"],
-                audience: _configuration["Jwt:Audience"],
+                issuer: issuer,
+                audience: audience,
                 claims: claims,
                 expires: expires,
                 signingCredentials: creds
@@ -215,7 +225,7 @@ namespace ExpenseTracker.API.Controllers
                 Secure = true,
                 SameSite = SameSiteMode.None,
                 Expires = expiresUtc,
-                Path = "/api/User/refresh"
+                Path = "/api/User"
             });
         }
 
@@ -227,9 +237,10 @@ namespace ExpenseTracker.API.Controllers
                 Secure = true,
                 SameSite = SameSiteMode.None,
                 Expires = DateTime.UtcNow.AddDays(-1),
-                Path = "/api/User/refresh"
+                Path = "/api/User"
             });
         }
+
 
         private async Task<bool> CheckValidityOfUsername(string username)
         {
