@@ -25,7 +25,7 @@ namespace ExpenseTracker.API.Controllers
 
 
         [HttpGet]
-        public async Task<IActionResult> GetAll()
+        public virtual async Task<IActionResult> GetAll()
         {
             var entities = await _repository.GetAllUserDataAsync();
             var dtos = entities.Select(ToDto).ToList();

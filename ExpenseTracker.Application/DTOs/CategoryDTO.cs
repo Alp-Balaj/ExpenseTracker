@@ -8,4 +8,15 @@
         public int CategoryTypeId { get; set; }
         public string? Color { get; set; }
     }
+
+    public class CategorySummaryDTO 
+    {
+        public Guid? Id { get; set; }
+        public string Name { get; set; }
+        public string? Description { get; set; }
+        public int CategoryTypeId { get; set; }
+        public decimal TotalAmount { get; set; }
+        public string? Color { get; set; }
+
+    }
 }
