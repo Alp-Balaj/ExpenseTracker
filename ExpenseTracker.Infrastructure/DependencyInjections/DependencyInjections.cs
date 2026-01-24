@@ -6,6 +6,9 @@ using ExpenseTracker.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using MongoDB.Driver;
+using MongoDB.Bson;
+
 
 namespace ExpenseTracker.Infrastructure.DependencyInjections
 {
@@ -16,6 +19,7 @@ namespace ExpenseTracker.Infrastructure.DependencyInjections
             services.AddDbContext<ApplicationDbContext>(options =>
                 options.UseSqlServer(configuration.GetConnectionString("DefaultConnection"),
                     b => b.MigrationsAssembly(typeof(ApplicationDbContext).Assembly.FullName)));
+            services.AddSingleton<MongoDbContext>();
 
             services.AddHttpContextAccessor();
             services.AddScoped<ICurrentUserServices, CurrentUserServices>();
