@@ -12,10 +12,10 @@ builder.Services.AddEndpointsApiExplorer();
 
 //Identity and JWT
 builder.Services.AddAuthServices(builder.Configuration);
-//Application services
-builder.Services.AddApplicationServices();
 //Infrastructure services
 builder.Services.AddInfrastructureServices(builder.Configuration);
+//Application services
+builder.Services.AddApplicationServices();
 //Swagger configuration
 builder.Services.AddCustomSwagger();
 //Cors configuration

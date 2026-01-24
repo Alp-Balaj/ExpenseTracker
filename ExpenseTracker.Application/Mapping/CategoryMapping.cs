@@ -18,7 +18,7 @@ namespace ExpenseTracker.Application.Mapping
                 Id = entity.Id,
                 Name = entity.Name,
                 Description = entity.Description,
-                CategoryTypeId = (int)entity.CategoryType,
+                CategoryType = (int)entity.CategoryType,
                 Color = entity.Color
             };
         }
@@ -28,7 +28,7 @@ namespace ExpenseTracker.Application.Mapping
             {
                 Name = dto.Name,
                 Description = dto.Description,
-                CategoryType = (CategoryType)dto.CategoryTypeId,
+                CategoryType = (CategoryType)dto.CategoryType,
                 Color = dto.Color
             };
         }
@@ -36,7 +36,7 @@ namespace ExpenseTracker.Application.Mapping
         {
             entity.Name = dto.Name;
             entity.Description = dto.Description;
-            entity.CategoryType = (CategoryType)dto.CategoryTypeId;
+            entity.CategoryType = (CategoryType)dto.CategoryType;
             entity.Color = dto.Color;
         }
     }
