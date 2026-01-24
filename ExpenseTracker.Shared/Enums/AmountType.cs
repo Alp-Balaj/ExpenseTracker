@@ -1,14 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace ExpenseTracker.Shared.Enums
+﻿namespace ExpenseTracker.Shared.Enums
 {
     public enum AmountType
     {
-        Cash = 0,
-        Bank = 1
+        CheckingAccount = 0,
+        SavingsAccount = 1,
+        Cash = 2,
+        CreditCard = 3,
+        Investment = 4
     }
 }
