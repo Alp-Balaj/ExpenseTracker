@@ -52,7 +52,8 @@ public sealed class CategoryService : ICategoryService
                 Id = c.Id,
                 Name = c.Name,
                 Color = c.Color,
-                TotalAmount = totalsByCategoryId.GetValueOrDefault(c.Id, 0m)
+                TotalAmount = totalsByCategoryId.GetValueOrDefault(c.Id, 0m),
+                CategoryType = (int)c.CategoryType
             })
             .ToList();
     }
