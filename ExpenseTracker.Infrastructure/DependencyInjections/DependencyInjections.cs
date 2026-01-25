@@ -30,6 +30,7 @@ namespace ExpenseTracker.Infrastructure.DependencyInjections
 
             services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
 
+            services.AddScoped<IUserPreferencesService, UserPreferencesService>();
             return services;
         }
     }
