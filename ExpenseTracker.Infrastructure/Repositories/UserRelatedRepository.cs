@@ -48,5 +48,10 @@ namespace ExpenseTracker.Infrastructure.Repositories
                 throw new UnauthorizedAccessException("Cannot delete another user's data.");
             _dbSet.Remove(entity);
         }
+        public IQueryable<T> Query()
+        {
+            return _context.Set<T>()
+                .Where(x => x.UserId == _UserId);
+        }
     }
 }

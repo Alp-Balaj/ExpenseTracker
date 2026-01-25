@@ -9,5 +9,6 @@ namespace ExpenseTracker.Domain.Interfaces
         Task AddAsync(T entity);
         void UpdateUserData(T entity);
         void DeleteUserData(T entity);
+        IQueryable<T> Query();
     }
 }

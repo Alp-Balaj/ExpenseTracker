@@ -22,9 +22,9 @@ namespace ExpenseTracker.Infrastructure.Persistence.Configurations
                 .HasColumnType("decimal(18,2)");
 
             
-            builder.HasOne(a => a.BalanceCurrency)
+            builder.HasOne(a => a.Currency)
                 .WithMany()
-                .HasForeignKey(a => a.BalanceCurrencyId)
+                .HasForeignKey(a => a.CurrencyId)
                 .OnDelete(DeleteBehavior.Restrict);
         }
     }

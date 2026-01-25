@@ -10,8 +10,8 @@ namespace ExpenseTracker.Domain.Entities
         public AmountType AmountType { get; set; }
         public decimal Balance { get; set; }
 
-        public Guid BalanceCurrencyId { get; set; }
-        public Currency? BalanceCurrency { get; set; }
+        public Guid CurrencyId { get; set; }
+        public Currency Currency { get; set; }
 
         public ICollection<Expense> Expenses { get; set; } = new List<Expense>();
         public ICollection<Income> Incomes { get; set; } = new List<Income>();

@@ -1,5 +1,4 @@
 ﻿using ExpenseTracker.Domain.Entities.Common;
-using Microsoft.Identity.Client;
 
 namespace ExpenseTracker.Domain.Entities
 {
@@ -10,9 +9,9 @@ namespace ExpenseTracker.Domain.Entities
         public string? Description { get; set; }
 
         public Guid AccountId { get; set; }
-        public Guid? CategoryId { get; set; }
+        public Guid CategoryId { get; set; }
         
         public Account Account { get; set; }
-        public Category? Source { get; set; }
+        public Category Category { get; set; }
     }
 }

@@ -2,10 +2,14 @@
 using ExpenseTracker.Application.DependencyInjection;
 using ExpenseTracker.Infrastructure.DependencyInjections;
 using ExpenseTracker.Infrastructure.Services;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(o =>
+        o.JsonSerializerOptions.Converters.Add(
+            new JsonStringEnumConverter()));
 builder.Services.AddEndpointsApiExplorer();
 
 #region Costum Services and Configurations

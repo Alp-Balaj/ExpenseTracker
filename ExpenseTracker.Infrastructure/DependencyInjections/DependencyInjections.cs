@@ -30,6 +30,8 @@ namespace ExpenseTracker.Infrastructure.DependencyInjections
 
             services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
 
+            services.AddScoped<ITransactionReportService, TransactionReportService>();
+
             return services;
         }
     }
