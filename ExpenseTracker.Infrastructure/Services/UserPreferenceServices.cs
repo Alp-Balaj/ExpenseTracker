@@ -5,7 +5,7 @@ using MongoDB.Driver;
 
 namespace ExpenseTracker.Infrastructure.Services;
 
-public class UserPreferencesService
+public class UserPreferencesService : IUserPreferencesService
 {
     private readonly IMongoCollection<UserPreferences> _collection;
     private readonly ICurrentUserServices _user;
@@ -33,17 +33,23 @@ public class UserPreferencesService
 
     public async Task UpdateAsync(UserPreferences updated)
     {
-        var update = Builders<UserPreferences>.Update
+        try
+        {
+            var update = Builders<UserPreferences>.Update
+            .SetOnInsert(x => x.UserId, _user.UserId)
             .Set(x => x.Theme, updated.Theme)
-            //.Set(x => x.Language, updated.Language)
-            .Set(x => x.Currency, updated.Currency)
-            .Set(x => x.UpdatedAt, DateTime.UtcNow);
+            .Set(x => x.BaseCurrency, updated.BaseCurrency);
 
-        await _collection.UpdateOneAsync(
-            x => x.UserId == _user.UserId,
-            update,
-            new UpdateOptions { IsUpsert = true }
-        );
+            await _collection.UpdateOneAsync(
+                x => x.UserId == _user.UserId,
+                update,
+                new UpdateOptions { IsUpsert = true }
+            );
+        }
+        catch (Exception e)
+        {
+
+            throw;
+        }
     }
-
 }

@@ -32,6 +32,7 @@ namespace ExpenseTracker.Infrastructure.DependencyInjections
 
             services.AddScoped<ITransactionReportService, TransactionReportService>();
 
+            services.AddScoped<IUserPreferencesService, UserPreferencesService>();
             return services;
         }
     }
