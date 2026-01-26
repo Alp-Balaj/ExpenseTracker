@@ -21,7 +21,6 @@ public class UserPreferencesController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> Get()
     {
-        var userId = User.FindFirst("sub")!.Value;
         var prefs = await _service.GetAsync();
         return Ok(prefs);
     }
