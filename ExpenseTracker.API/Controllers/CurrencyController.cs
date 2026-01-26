@@ -17,5 +17,16 @@ namespace ExpenseTracker.API.Controllers
         protected override CurrencyDTO ToDto(Currency entity) => entity.ToDto();
         protected override Currency ToEntity(CurrencyDTO dto) => dto.ToEntity();
         protected override void ApplyUpdates(Currency entity, CurrencyDTO dto) => entity.Apply(dto);
+        protected CurrencyDropdownDTO ToDropdownDto(Currency entity) => entity.ToDropdownDto();
+
+        [HttpGet("Dropdown")]
+        public virtual async Task<IActionResult> GetAllDropdown()
+        {
+            var entities = await _repository.GetAllUserDataAsync();
+            var dtos = entities.Select(ToDropdownDto).ToList();
+            return Ok(dtos);
+        }
     }
+
+
 }

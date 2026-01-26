@@ -9,5 +9,6 @@ namespace ExpenseTracker.Application.DTOs
         public int AmountType { get; set; }
         public decimal Balance { get; set; }
         public Guid CurrencyId { get; set; }
+        public string? Description { get; set; }
     }
 }

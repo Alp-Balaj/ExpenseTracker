@@ -9,6 +9,7 @@ namespace ExpenseTracker.Domain.Entities
         public string Name { get; set; }
         public AmountType AmountType { get; set; }
         public decimal Balance { get; set; }
+        public string? Description { get; set; }
 
         public Guid CurrencyId { get; set; }
         public Currency Currency { get; set; }
