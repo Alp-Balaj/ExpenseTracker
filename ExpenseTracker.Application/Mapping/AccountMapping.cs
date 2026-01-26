@@ -11,7 +11,7 @@ namespace ExpenseTracker.Application.Mapping
             {
                 Id = account.Id,
                 Name = account.Name,
-                AmountTypeId = (int)account.AmountType,
+                AmountType = (int)account.AmountType,
                 Balance = account.Balance,
                 CurrencyId = account.CurrencyId,
             };
@@ -21,7 +21,7 @@ namespace ExpenseTracker.Application.Mapping
             return new Account
             {
                 Name = accountDTO.Name,
-                AmountType = (AmountType)accountDTO.AmountTypeId,
+                AmountType = (AmountType)accountDTO.AmountType,
                 Balance = accountDTO.Balance,
                 CurrencyId = accountDTO.CurrencyId,
             };
@@ -29,7 +29,7 @@ namespace ExpenseTracker.Application.Mapping
         public static void Apply(this Account entity, AccountDTO dto)
         {
             entity.Name = dto.Name;
-            entity.AmountType = (AmountType)dto.AmountTypeId;
+            entity.AmountType = (AmountType)dto.AmountType;
             entity.Balance = dto.Balance;
             entity.CurrencyId = dto.CurrencyId;
         }
