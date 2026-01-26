@@ -1,5 +1,4 @@
 ﻿using ExpenseTracker.Application.Interfaces;
-using ExpenseTracker.Application.Mapping;
 using ExpenseTracker.Application.Services;
 using Microsoft.Extensions.DependencyInjection;
 

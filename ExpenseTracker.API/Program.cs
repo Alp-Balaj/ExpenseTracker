@@ -2,6 +2,7 @@
 using ExpenseTracker.Application.DependencyInjection;
 using ExpenseTracker.Infrastructure.DependencyInjections;
 using ExpenseTracker.Infrastructure.Services;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 

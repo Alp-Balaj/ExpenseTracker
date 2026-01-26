@@ -24,7 +24,7 @@ namespace ExpenseTracker.Infrastructure.Persistence.Configurations
                    .IsRequired()
                    .OnDelete(DeleteBehavior.Restrict);
 
-            builder.HasOne(i => i.Source)
+            builder.HasOne(i => i.Category)
                    .WithMany(c => c.Incomes)
                    .HasForeignKey(i => i.CategoryId)
                    .IsRequired(false)

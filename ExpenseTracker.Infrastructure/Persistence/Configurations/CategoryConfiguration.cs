@@ -30,7 +30,7 @@ namespace ExpenseTracker.Infrastructure.Persistence.Configurations
                    .OnDelete(DeleteBehavior.SetNull);
 
             builder.HasMany(c => c.Incomes)
-                   .WithOne(i => i.Source)
+                   .WithOne(i => i.Category)
                    .HasForeignKey(i => i.CategoryId)
                    .OnDelete(DeleteBehavior.SetNull);
 

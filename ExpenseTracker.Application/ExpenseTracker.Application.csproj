@@ -20,10 +20,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Services\" />
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="..\ExpenseTracker.Domain\ExpenseTracker.Domain.csproj" />
     <ProjectReference Include="..\ExpenseTracker.Shared\ExpenseTracker.Shared.csproj" />
   </ItemGroup>
