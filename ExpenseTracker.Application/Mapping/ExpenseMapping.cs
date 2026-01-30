@@ -22,12 +22,17 @@ namespace ExpenseTracker.Application.Mapping
         {
             return new Expense
             {
+                UserId = null!,
+
                 Title = dto.Title,
                 Amount = dto.Amount,
                 Date = dto.Date,
                 Description = dto.Description,
                 AccountId = dto.AccountId,
-                CategoryId = dto.CategoryId
+                CategoryId = dto.CategoryId,
+
+                Account = null!,
+                Category = null!
             };
         }
         public static void Apply(this Expense entity, ExpenseDTO dto)

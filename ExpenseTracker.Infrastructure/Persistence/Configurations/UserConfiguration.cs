@@ -17,9 +17,6 @@ namespace ExpenseTracker.Infrastructure.Persistence.Configurations
                 .IsRequired()
                 .HasMaxLength(50);
 
-            builder.Property(u => u.Preferences)
-                .HasMaxLength(500); 
-
             builder.HasIndex(u => u.UserName).IsUnique();
             builder.HasIndex(u => u.Email).IsUnique();
         }

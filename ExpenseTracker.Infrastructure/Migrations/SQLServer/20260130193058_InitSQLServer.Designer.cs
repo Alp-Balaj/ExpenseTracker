@@ -9,18 +9,18 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
 
-namespace ExpenseTracker.Infrastructure.Migrations
+namespace ExpenseTracker.Infrastructure.Migrations.SQLServer
 {
-    [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260125104927_Alter_Currency")]
-    partial class Alter_Currency
+    [DbContext(typeof(SQLServerContext))]
+    [Migration("20260130193058_InitSQLServer")]
+    partial class InitSQLServer
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "9.0.10")
+                .HasAnnotation("ProductVersion", "8.0.23")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -31,20 +31,22 @@ namespace ExpenseTracker.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<int>("AmountType")
-                        .HasColumnType("int");
+                    b.Property<string>("AmountType")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<decimal>("Balance")
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<Guid>("BalanceCurrencyId")
-                        .HasColumnType("uniqueidentifier");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<Guid>("CurrencyId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<string>("Description")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -60,7 +62,7 @@ namespace ExpenseTracker.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("BalanceCurrencyId");
+                    b.HasIndex("CurrencyId");
 
                     b.ToTable("Accounts");
                 });
@@ -153,7 +155,7 @@ namespace ExpenseTracker.Infrastructure.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<Guid?>("CategoryId")
+                    b.Property<Guid>("CategoryId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<DateTime>("CreatedAt")
@@ -163,7 +165,8 @@ namespace ExpenseTracker.Infrastructure.Migrations
                         .HasColumnType("datetime2");
 
                     b.Property<string>("Description")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
 
                     b.Property<string>("Title")
                         .IsRequired()
@@ -196,7 +199,7 @@ namespace ExpenseTracker.Infrastructure.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<Guid?>("CategoryId")
+                    b.Property<Guid>("CategoryId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<DateTime>("CreatedAt")
@@ -241,7 +244,7 @@ namespace ExpenseTracker.Infrastructure.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<Guid?>("CategoryId")
+                    b.Property<Guid>("CategoryId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<DateTime>("CreatedAt")
@@ -283,7 +286,7 @@ namespace ExpenseTracker.Infrastructure.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<Guid?>("CategoryId")
+                    b.Property<Guid>("CategoryId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<DateTime>("CreatedAt")
@@ -405,10 +408,6 @@ namespace ExpenseTracker.Infrastructure.Migrations
 
                     b.Property<bool>("PhoneNumberConfirmed")
                         .HasColumnType("bit");
-
-                    b.Property<string>("Preferences")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
 
                     b.Property<string>("SecurityStamp")
                         .HasColumnType("nvarchar(max)");
@@ -576,13 +575,13 @@ namespace ExpenseTracker.Infrastructure.Migrations
 
             modelBuilder.Entity("ExpenseTracker.Domain.Entities.Account", b =>
                 {
-                    b.HasOne("ExpenseTracker.Domain.Entities.Currency", "BalanceCurrency")
+                    b.HasOne("ExpenseTracker.Domain.Entities.Currency", "Currency")
                         .WithMany()
-                        .HasForeignKey("BalanceCurrencyId")
+                        .HasForeignKey("CurrencyId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.Navigation("BalanceCurrency");
+                    b.Navigation("Currency");
                 });
 
             modelBuilder.Entity("ExpenseTracker.Domain.Entities.Expense", b =>
@@ -596,7 +595,8 @@ namespace ExpenseTracker.Infrastructure.Migrations
                     b.HasOne("ExpenseTracker.Domain.Entities.Category", "Category")
                         .WithMany("Expenses")
                         .HasForeignKey("CategoryId")
-                        .OnDelete(DeleteBehavior.SetNull);
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
 
                     b.Navigation("Account");
 
@@ -608,7 +608,7 @@ namespace ExpenseTracker.Infrastructure.Migrations
                     b.HasOne("ExpenseTracker.Domain.Entities.Category", "Category")
                         .WithMany("FutureExpenses")
                         .HasForeignKey("CategoryId")
-                        .OnDelete(DeleteBehavior.SetNull);
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("Category");
                 });
@@ -621,14 +621,14 @@ namespace ExpenseTracker.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("ExpenseTracker.Domain.Entities.Category", "Source")
+                    b.HasOne("ExpenseTracker.Domain.Entities.Category", "Category")
                         .WithMany("Incomes")
                         .HasForeignKey("CategoryId")
-                        .OnDelete(DeleteBehavior.SetNull);
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("Account");
 
-                    b.Navigation("Source");
+                    b.Navigation("Category");
                 });
 
             modelBuilder.Entity("ExpenseTracker.Domain.Entities.Saving", b =>
@@ -642,7 +642,7 @@ namespace ExpenseTracker.Infrastructure.Migrations
                     b.HasOne("ExpenseTracker.Domain.Entities.Category", "Category")
                         .WithMany("Savings")
                         .HasForeignKey("CategoryId")
-                        .OnDelete(DeleteBehavior.SetNull);
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("Account");
 

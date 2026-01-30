@@ -17,6 +17,7 @@ namespace ExpenseTracker.Infrastructure.Persistence.Configurations
                    .HasMaxLength(100);
 
             builder.Property(f => f.Description)
+                   .IsRequired(false)
                    .HasMaxLength(500);
 
             builder.Property(f => f.PredictedDate)
@@ -26,7 +27,7 @@ namespace ExpenseTracker.Infrastructure.Persistence.Configurations
                    .WithMany(c => c.FutureExpenses)
                    .HasForeignKey(f => f.CategoryId)
                    .IsRequired(false)
-                   .OnDelete(DeleteBehavior.SetNull);
+                   .OnDelete(DeleteBehavior.Restrict);
         }
     }
 }

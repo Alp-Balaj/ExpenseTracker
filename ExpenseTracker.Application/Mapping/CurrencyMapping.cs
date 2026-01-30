@@ -19,6 +19,8 @@ namespace ExpenseTracker.Application.Mapping
         {
             return new Currency
             {
+                UserId = null!,
+
                 Name = dto.Name,
                 Code = dto.Code,
                 Symbol = dto.Symbol,

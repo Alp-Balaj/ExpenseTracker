@@ -10,6 +10,9 @@ namespace ExpenseTracker.Infrastructure.Persistence.Configurations
         {
             builder.HasKey(c => c.Id);
 
+            builder.Property(c => c.Name)
+                .IsRequired();
+
             builder.Property(c => c.Code)
                 .IsRequired()
                 .HasMaxLength(3);

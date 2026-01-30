@@ -1,4 +1,5 @@
-﻿using ExpenseTracker.Domain.Entities.User;
+﻿using DnsClient.Protocol;
+using ExpenseTracker.Domain.Entities.User;
 using ExpenseTracker.Domain.Interfaces;
 using ExpenseTracker.Infrastructure.Security;
 using Microsoft.AspNetCore.Identity;
@@ -184,23 +185,25 @@ namespace ExpenseTracker.API.Controllers
         #region Helper functions
         private string GenerateJwtToken(User user)
         {
+            var jwtKey = _configuration["Jwt:Key"] 
+                ?? throw new InvalidOperationException("JWT Key is not configured in appsettings.json");
+
             var claims = new[]
             {
-                new Claim(JwtRegisteredClaimNames.Sub, user.Id),
-                new Claim(JwtRegisteredClaimNames.Email, user.Email),
-                new Claim(JwtRegisteredClaimNames.UniqueName, user.UserName),
+                new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
+                new Claim(JwtRegisteredClaimNames.Email, user.Email ?? string.Empty),
+                new Claim(JwtRegisteredClaimNames.UniqueName, user.UserName ?? string.Empty),
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
             };
 
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]));
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-            var expires = DateTime.UtcNow.AddMinutes(60);
-
+            
             var token = new JwtSecurityToken(
                 issuer: _configuration["Jwt:Issuer"],
                 audience: _configuration["Jwt:Audience"],
                 claims: claims,
-                expires: expires,
+                expires: DateTime.UtcNow.AddMinutes(60),
                 signingCredentials: creds
             );
 

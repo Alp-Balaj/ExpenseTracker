@@ -6,9 +6,7 @@ using ExpenseTracker.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using MongoDB.Driver;
-using MongoDB.Bson;
-
+using Npgsql.EntityFrameworkCore.PostgreSQL;
 
 namespace ExpenseTracker.Infrastructure.DependencyInjections
 {
@@ -16,9 +14,23 @@ namespace ExpenseTracker.Infrastructure.DependencyInjections
     {
         public static IServiceCollection AddInfrastructureServices(this IServiceCollection services, IConfiguration configuration)
         {
-            services.AddDbContext<ApplicationDbContext>(options =>
-                options.UseSqlServer(configuration.GetConnectionString("DefaultConnection"),
-                    b => b.MigrationsAssembly(typeof(ApplicationDbContext).Assembly.FullName)));
+            var dbProvider = configuration["DatabaseProvider"];
+
+            if (dbProvider == "SQLServer")
+            {
+                services.AddDbContext<SQLServerContext>(options => 
+                    options.UseSqlServer(configuration.GetConnectionString("SQLServer")));
+            }
+            else if(dbProvider == "PostgreSQL")
+            {
+                services.AddDbContext<PostgresContext>(options =>
+                    options.UseNpgsql(configuration.GetConnectionString("PostgreSQL")));
+            }
+            else
+            {
+                throw new Exception($"Couldn't find dbProvider: {dbProvider}");
+            }
+
             services.AddSingleton<MongoDbContext>();
 
             services.AddHttpContextAccessor();

@@ -21,6 +21,8 @@ namespace ExpenseTracker.Application.Mapping
         {
             return new Account
             {
+                UserId = null!,
+
                 Name = accountDTO.Name,
                 AmountType = (AmountType)accountDTO.AmountType,
                 Balance = accountDTO.Balance,

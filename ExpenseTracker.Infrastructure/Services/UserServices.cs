@@ -14,8 +14,8 @@ namespace ExpenseTracker.Infrastructure.Services
         }
 
         public string UserId =>
-            _httpContextAccessor.HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier);
-
+            _httpContextAccessor.HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier) 
+            ?? string.Empty;
         public string UserName =>
         _httpContextAccessor.HttpContext?.User.FindFirstValue(ClaimTypes.Name)
         ?? "Unknown";

@@ -27,22 +27,22 @@ namespace ExpenseTracker.Infrastructure.Persistence.Configurations
             builder.HasMany(c => c.Expenses)
                    .WithOne(e => e.Category)
                    .HasForeignKey(e => e.CategoryId)
-                   .OnDelete(DeleteBehavior.SetNull);
+                   .OnDelete(DeleteBehavior.Restrict);
 
             builder.HasMany(c => c.Incomes)
                    .WithOne(i => i.Category)
                    .HasForeignKey(i => i.CategoryId)
-                   .OnDelete(DeleteBehavior.SetNull);
+                   .OnDelete(DeleteBehavior.Restrict);
 
             builder.HasMany(c => c.Savings)
                    .WithOne(s => s.Category)
                    .HasForeignKey(s => s.CategoryId)
-                   .OnDelete(DeleteBehavior.SetNull);
+                   .OnDelete(DeleteBehavior.Restrict);
 
             builder.HasMany(c => c.FutureExpenses)
                    .WithOne(f => f.Category)
                    .HasForeignKey(f => f.CategoryId)
-                   .OnDelete(DeleteBehavior.SetNull);
+                   .OnDelete(DeleteBehavior.Restrict);
         }
     }
 }

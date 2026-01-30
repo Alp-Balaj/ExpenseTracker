@@ -20,6 +20,8 @@ namespace ExpenseTracker.Application.Mapping
         {
             return new Saving
             {
+                UserId = null!,
+                
                 Amount = dto.Amount,
                 Date = dto.Date,
                 Description = dto.Description,
