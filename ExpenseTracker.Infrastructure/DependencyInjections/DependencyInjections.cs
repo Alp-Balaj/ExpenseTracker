@@ -16,27 +16,17 @@ namespace ExpenseTracker.Infrastructure.DependencyInjections
         {
             var dbProvider = configuration["DatabaseProvider"];
 
-            if (dbProvider == "SqlServer")
+            services.AddDbContext<ApplicationDbContext>(options =>
             {
-                services.AddDbContext<ApplicationDbContext>(options =>
-                    options.UseSqlServer(
-                        configuration.GetConnectionString("SqlServer"),
-                        b => b.MigrationsAssembly("ExpenseTracker.Infrastructure")
-                              .MigrationsHistoryTable("__EFMigrationsHistory_SqlServer"))
-                        );
-            }
-            else if (dbProvider == "PostgreSQL")
-            {
-                services.AddDbContext<ApplicationDbContext>(options =>
-                    options.UseNpgsql(
-                        configuration.GetConnectionString("PostgreSQL"),
-                        b => b.MigrationsAssembly("ExpenseTracker.Infrastructure")
-                              .MigrationsHistoryTable("__EFMigrationsHistory_Postgres")));
-            }
-            else
-            {
-                throw new Exception($"No valid database provider configured.");
-            }
+                var provider = configuration["DatabaseProvider"];
+
+                if (provider == "SqlServer")
+                    options.UseSqlServer(configuration.GetConnectionString("SqlServer"));
+                else if (provider == "PostgreSQL")
+                    options.UseNpgsql(configuration.GetConnectionString("PostgreSQL"));
+                else
+                    throw new Exception();
+            });
 
             services.AddSingleton<MongoDbContext>();
 
