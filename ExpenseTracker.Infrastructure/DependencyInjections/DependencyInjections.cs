@@ -32,12 +32,9 @@ namespace ExpenseTracker.Infrastructure.DependencyInjections
             }
             else
             {
-                throw new Exception($"No valid database provider configured. BRUH: {dbProvider}");
+                throw new Exception($"No valid database provider configured.");
             }
 
-            // services.AddDbContext<ApplicationDbContext>(options =>
-            //     options.UseSqlServer(configuration.GetConnectionString("DefaultConnection"),
-            //         b => b.MigrationsAssembly(typeof(ApplicationDbContext).Assembly.FullName)));
             services.AddSingleton<MongoDbContext>();
 
             services.AddHttpContextAccessor();
