@@ -12,7 +12,7 @@ public class MongoDbContext
     {
         var client = new MongoClient(
             MongoClientSettings.FromConnectionString(
-                config.GetConnectionString("MongoDbConntection")
+                config.GetConnectionString("MongoDbConnection")
             )
         );
 

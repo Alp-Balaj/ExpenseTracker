@@ -1,9 +1,9 @@
 using Microsoft.EntityFrameworkCore;
 
 namespace ExpenseTracker.Infrastructure.Persistence;
-public class SqlServerContext : ApplicationDbContext
+public class SQLServerContext : ApplicationDbContext
 {
-    public SqlServerContext(DbContextOptions<SqlServerContext> options)
+    public SQLServerContext(DbContextOptions<SQLServerContext> options)
         : base(options)
     {
     }

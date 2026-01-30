@@ -32,4 +32,9 @@
     <ProjectReference Include="..\ExpenseTracker.Shared\ExpenseTracker.Shared.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Migrations\" />
+    <Folder Include="Migrations\SQLServer\" />
+  </ItemGroup>
+
 </Project>

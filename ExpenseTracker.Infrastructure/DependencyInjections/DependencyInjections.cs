@@ -16,17 +16,20 @@ namespace ExpenseTracker.Infrastructure.DependencyInjections
         {
             var dbProvider = configuration["DatabaseProvider"];
 
-            services.AddDbContext<ApplicationDbContext>(options =>
+            if (dbProvider == "SQLServer")
             {
-                var provider = configuration["DatabaseProvider"];
-
-                if (provider == "SqlServer")
-                    options.UseSqlServer(configuration.GetConnectionString("SqlServer"));
-                else if (provider == "PostgreSQL")
-                    options.UseNpgsql(configuration.GetConnectionString("PostgreSQL"));
-                else
-                    throw new Exception();
-            });
+                services.AddDbContext<SQLServerContext>(options => 
+                    options.UseSqlServer(configuration.GetConnectionString("SQLServer")));
+            }
+            else if(dbProvider == "PostgreSQL")
+            {
+                services.AddDbContext<PostgresContext>(options =>
+                    options.UseNpgsql(configuration.GetConnectionString("PostgreSQL")));
+            }
+            else
+            {
+                throw new Exception($"Couldn't find dbProvider: {dbProvider}");
+            }
 
             services.AddSingleton<MongoDbContext>();
 
