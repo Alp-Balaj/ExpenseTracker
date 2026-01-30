@@ -24,12 +24,11 @@ namespace ExpenseTracker.Infrastructure.Persistence.Configurations
                    .IsRequired(true)
                    .OnDelete(DeleteBehavior.Restrict);
 
-            // Category relationship (optional)
             builder.HasOne(s => s.Category)
                    .WithMany(c => c.Savings)
                    .HasForeignKey(s => s.CategoryId)
                    .IsRequired(false)
-                   .OnDelete(DeleteBehavior.SetNull);
+                   .OnDelete(DeleteBehavior.Restrict);
         }
     }
 }

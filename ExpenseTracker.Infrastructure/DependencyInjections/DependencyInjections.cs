@@ -21,14 +21,17 @@ namespace ExpenseTracker.Infrastructure.DependencyInjections
                 services.AddDbContext<ApplicationDbContext>(options =>
                     options.UseSqlServer(
                         configuration.GetConnectionString("SqlServer"),
-                        b => b.MigrationsAssembly(typeof(ApplicationDbContext).Assembly.FullName)));
+                        b => b.MigrationsAssembly("ExpenseTracker.Infrastructure")
+                              .MigrationsHistoryTable("__EFMigrationsHistory_SqlServer"))
+                        );
             }
             else if (dbProvider == "PostgreSQL")
             {
                 services.AddDbContext<ApplicationDbContext>(options =>
                     options.UseNpgsql(
                         configuration.GetConnectionString("PostgreSQL"),
-                        b => b.MigrationsAssembly(typeof(ApplicationDbContext).Assembly.FullName)));
+                        b => b.MigrationsAssembly("ExpenseTracker.Infrastructure")
+                              .MigrationsHistoryTable("__EFMigrationsHistory_Postgres")));
             }
             else
             {

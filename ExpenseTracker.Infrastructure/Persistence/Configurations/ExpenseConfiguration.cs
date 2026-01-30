@@ -9,13 +9,18 @@ namespace ExpenseTracker.Infrastructure.Persistence.Configurations
         public void Configure(EntityTypeBuilder<Expense> builder)
         {
             builder.Property(e => e.Amount)
+                   .IsRequired()
                    .HasPrecision(18, 2);
 
             builder.Property(e => e.Title)
                    .IsRequired()
                    .HasMaxLength(100);
 
+            builder.Property(e => e.Date)
+                   .IsRequired();
+
             builder.Property(e => e.Description)
+                   .IsRequired(false)
                    .HasMaxLength(500);
 
             builder.HasOne(e => e.Account)
