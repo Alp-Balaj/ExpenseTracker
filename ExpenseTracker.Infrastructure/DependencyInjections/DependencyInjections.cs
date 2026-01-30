@@ -18,12 +18,12 @@ namespace ExpenseTracker.Infrastructure.DependencyInjections
 
             if (dbProvider == "SQLServer")
             {
-                services.AddDbContext<SQLServerContext>(options => 
+                services.AddDbContext<ApplicationDbContext>(options => 
                     options.UseSqlServer(configuration.GetConnectionString("SQLServer")));
             }
             else if(dbProvider == "PostgreSQL")
             {
-                services.AddDbContext<PostgresContext>(options =>
+                services.AddDbContext<ApplicationDbContext>(options =>
                     options.UseNpgsql(configuration.GetConnectionString("PostgreSQL")));
             }
             else
