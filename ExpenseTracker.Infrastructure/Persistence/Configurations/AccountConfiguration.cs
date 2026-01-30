@@ -15,12 +15,16 @@ namespace ExpenseTracker.Infrastructure.Persistence.Configurations
                 .HasMaxLength(100);
 
             builder.Property(a => a.AmountType)
-                .IsRequired();
+                .IsRequired()
+                .HasConversion<string>();
 
             builder.Property(a => a.Balance)
                 .IsRequired()
                 .HasColumnType("decimal(18,2)");
-
+            
+            builder.Property(a => a.Description)
+                .IsRequired(false)
+                .HasMaxLength(100);
             
             builder.HasOne(a => a.Currency)
                 .WithMany()

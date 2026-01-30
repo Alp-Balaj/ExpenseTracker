@@ -20,6 +20,8 @@ namespace ExpenseTracker.Application.Mapping
         {
             return new FutureExpense
             {
+                UserId = null!,
+                
                 Title = dto.Title,
                 Amount = dto.Amount,
                 PredictedDate = dto.Date,

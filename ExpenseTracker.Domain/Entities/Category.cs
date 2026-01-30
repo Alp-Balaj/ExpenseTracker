@@ -1,13 +1,21 @@
-﻿using ExpenseTracker.Domain.Entities.Common;
+﻿using System.Diagnostics.CodeAnalysis;
+using ExpenseTracker.Domain.Entities.Common;
 using ExpenseTracker.Shared.Enums;
 
 namespace ExpenseTracker.Domain.Entities
 {
     public class Category : BaseEntity
     {
-        public string Name { get; set; }
+        [SetsRequiredMembers]
+        public Category() : base()
+        {
+            UserId = null!;
+            Name = null!;
+            CategoryType = default!;   
+        }
+        public required string Name { get; set; }
         public string? Description { get; set; }
-        public CategoryType CategoryType { get; set; }
+        public required CategoryType CategoryType { get; set; }
         public string? Color { get; set; }
 
         public ICollection<Expense> Expenses { get; set; } = new List<Expense>();

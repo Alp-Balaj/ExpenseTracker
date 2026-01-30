@@ -26,6 +26,8 @@ namespace ExpenseTracker.Application.Mapping
         {
             return new Category
             {
+                UserId = null!,
+
                 Name = dto.Name,
                 Description = dto.Description,
                 CategoryType = (CategoryType)dto.CategoryType,

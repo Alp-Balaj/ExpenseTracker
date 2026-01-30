@@ -12,13 +12,13 @@ namespace ExpenseTracker.Infrastructure.Persistence
         {
         }
 
-        public DbSet<Account> Accounts { get; set; }
-        public DbSet<Category> Categories { get; set; }
-        public DbSet<Currency> Currencies { get; set; }
+        // public DbSet<Account> Accounts { get; set; }
+        // public DbSet<Category> Categories { get; set; }
+        // public DbSet<Currency> Currencies { get; set; }
         public DbSet<Expense> Expenses { get; set; }
-        public DbSet<FutureExpense> FutureExpenses { get; set; }
-        public DbSet<Income> Incomes { get; set; }
-        public DbSet<Saving> Savings { get; set; }
+        // public DbSet<FutureExpense> FutureExpenses { get; set; }
+        // public DbSet<Income> Incomes { get; set; }
+        // public DbSet<Saving> Savings { get; set; }
         public DbSet<RefreshToken> RefreshTokens { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)

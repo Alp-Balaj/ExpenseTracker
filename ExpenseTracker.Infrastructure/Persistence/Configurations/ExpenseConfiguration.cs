@@ -15,17 +15,19 @@ namespace ExpenseTracker.Infrastructure.Persistence.Configurations
                    .IsRequired()
                    .HasMaxLength(100);
 
+            builder.Property(e => e.Description)
+                   .HasMaxLength(500);
+
             builder.HasOne(e => e.Account)
                    .WithMany(a => a.Expenses)
                    .HasForeignKey(e => e.AccountId)
                    .IsRequired()
                    .OnDelete(DeleteBehavior.Restrict);
 
-
             builder.HasOne(e => e.Category)
                    .WithMany(c => c.Expenses)
                    .HasForeignKey(e => e.CategoryId)
-                   .OnDelete(DeleteBehavior.SetNull);
+                   .OnDelete(DeleteBehavior.Restrict);
         }
     }
 }

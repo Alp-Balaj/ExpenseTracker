@@ -46,9 +46,8 @@ public class UserPreferencesService : IUserPreferencesService
                 new UpdateOptions { IsUpsert = true }
             );
         }
-        catch (Exception e)
+        catch (Exception)
         {
-
             throw;
         }
     }
