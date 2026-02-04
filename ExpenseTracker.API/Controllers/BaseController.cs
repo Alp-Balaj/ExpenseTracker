@@ -41,7 +41,7 @@ namespace ExpenseTracker.API.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> Create([FromBody] TDto dto)
+        public virtual async Task<IActionResult> Create([FromBody] TDto dto)
         {
             var entity = ToEntity(dto);
             await _repository.AddAsync(entity);

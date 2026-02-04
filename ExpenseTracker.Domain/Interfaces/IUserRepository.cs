@@ -10,5 +10,6 @@ namespace ExpenseTracker.Domain.Interfaces
         void UpdateUserData(T entity);
         void DeleteUserData(T entity);
         IQueryable<T> Query();
+        string GetCurrentUserId();
     }
 }

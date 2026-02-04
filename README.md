@@ -56,7 +56,7 @@ Primary configuration lives in `ExpenseTracker.API/appsettings.json`. Important 
 - `Jwt:Key` — Signing key (DO NOT commit to source control)
 - `Jwt:Issuer`, `Jwt:Audience` — Token issuer and audience
 - `Jwt:ExpiresMinutes` — JWT lifetime (minutes)
-- `Jwt:RefreshTokenPepper` (optional) — Optional server-side pepper for refresh token hashing  
+- `RefreshToken:Pepper` (optional) — Optional server-side pepper for refresh token hashing  
 - `RefreshToken:Longevity` — Refresh token longevity (days)
 
 ### Example (local development — DO NOT COMMIT secrets):
@@ -74,7 +74,7 @@ Primary configuration lives in `ExpenseTracker.API/appsettings.json`. Important 
         }, 
     "RefreshToken": 
         { 
-            "RefreshTokenPepper": "<OPTIONAL_PEPPER>"
+            "Pepper": "<OPTIONAL_PEPPER>"
             "Longevity": 14 
         } 
 }
