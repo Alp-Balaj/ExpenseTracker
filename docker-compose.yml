@@ -1,0 +1,11 @@
+version: "3.9"
+
+services:
+  api:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      Jwt__Key: "SUPER_LONG_SECRET_KEY_123456789"
+      Jwt__Issuer: "ExpenseTracker"
+      Jwt__Audience: "ExpenseTrackerUsers"
