@@ -53,5 +53,11 @@ namespace ExpenseTracker.Infrastructure.Repositories
             return _context.Set<T>()
                 .Where(x => x.UserId == _UserId);
         }
+
+        public string GetCurrentUserId()
+        {
+            return _user.UserId;
+        }
+
     }
 }
