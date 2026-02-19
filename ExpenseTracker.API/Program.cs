@@ -19,6 +19,8 @@ if (!skipDb)
 {
     builder.Services.AddInfrastructureServices(builder.Configuration);
 }
+//Application services
+builder.Services.AddApplicationServices();
 //Swagger configuration
 builder.Services.AddCustomSwagger();
 //Cors configuration
