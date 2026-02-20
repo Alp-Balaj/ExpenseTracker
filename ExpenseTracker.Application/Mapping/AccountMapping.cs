@@ -14,6 +14,7 @@ namespace ExpenseTracker.Application.Mapping
                 AmountType = (int)account.AmountType,
                 Balance = account.Balance,
                 CurrencyId = account.CurrencyId,
+                CurrencyCode = account.Currency.Code,
                 Description = account.Description,
             };
         }

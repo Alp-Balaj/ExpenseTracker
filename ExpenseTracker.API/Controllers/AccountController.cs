@@ -17,5 +17,6 @@ namespace ExpenseTracker.API.Controllers
         protected override AccountDTO ToDto(Account entity) => entity.ToDto();
         protected override Account ToEntity(AccountDTO dto) => dto.ToEntity();
         protected override void ApplyUpdates(Account entity, AccountDTO dto) => entity.Apply(dto);
+
     }
 }
