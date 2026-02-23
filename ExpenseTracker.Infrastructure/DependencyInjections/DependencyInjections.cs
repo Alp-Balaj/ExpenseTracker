@@ -39,6 +39,7 @@ namespace ExpenseTracker.Infrastructure.DependencyInjections
             services.AddScoped<IUnitOfWork, UnitOfWork>();
 
             services.AddScoped(typeof(IUserRelatedRepository<>), typeof(UserRelatedRepository<>));
+            services.AddScoped(typeof(IAccountRepository), typeof(AccountRepository));
 
             services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
 

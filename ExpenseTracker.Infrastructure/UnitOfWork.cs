@@ -17,7 +17,7 @@ namespace ExpenseTracker.Infrastructure
         public IUserRelatedRepository<FutureExpense> FutureExpenses { get; }
         public IUserRelatedRepository<Income> Incomes { get; }
         public IUserRelatedRepository<Saving> Savings { get; }
-
+        public IAccountRepository AccountRepository { get; }
         public UnitOfWork(ApplicationDbContext context, ICurrentUserServices currentUserServices)
         {
             _context = context;
@@ -30,6 +30,7 @@ namespace ExpenseTracker.Infrastructure
             FutureExpenses = new UserRelatedRepository<FutureExpense>(_context, _currentUserServices);
             Incomes = new UserRelatedRepository<Income>(_context, _currentUserServices);
             Savings = new UserRelatedRepository<Saving>(_context, _currentUserServices);
+            AccountRepository = new AccountRepository(_context, _currentUserServices);
         }
 
         public async Task<int> SaveAsync() => await _context.SaveChangesAsync();
