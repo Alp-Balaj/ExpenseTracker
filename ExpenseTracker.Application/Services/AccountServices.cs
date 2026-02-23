@@ -1,11 +1,9 @@
-﻿using ExpenseTracker.Domain.Entities;
-using ExpenseTracker.Domain.Entities.User;
+﻿using ExpenseTracker.Application.Interfaces;
+using ExpenseTracker.Domain.Entities;
 using ExpenseTracker.Domain.Interfaces;
-using Microsoft.AspNetCore.Http.HttpResults;
-using Microsoft.AspNetCore.Mvc;
 
 namespace ExpenseTracker.Application.Services;
-public class AccountServices
+public class AccountServices: IAccountServices
 {
     private readonly IUserRelatedRepository<Account> _accountRepo;
     public AccountServices(IUserRelatedRepository<Account> accountRepo)
