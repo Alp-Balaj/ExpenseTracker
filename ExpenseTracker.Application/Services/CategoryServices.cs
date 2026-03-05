@@ -32,8 +32,8 @@ public sealed class CategoryService : ICategoryService
             CategoryType.Income =>
                 await _unitOfWork.Incomes.GetAllUserDataAsync(),
 
-            CategoryType.Savings =>
-                await _unitOfWork.Savings.GetAllUserDataAsync(),
+            CategoryType.SavingGoals =>
+                await _unitOfWork.SavingGoals.GetAllUserDataAsync(),
 
             CategoryType.FutureExpense =>
                 await _unitOfWork.FutureExpenses.GetAllUserDataAsync(),
@@ -43,8 +43,12 @@ public sealed class CategoryService : ICategoryService
 
         var totalsByCategoryId = entries
             .GroupBy(e => ((dynamic)e).CategoryId)
-            .ToDictionary(g => g.Key, g => ((IEnumerable<dynamic>)g)
-            .Sum(e => (decimal)e.Amount));
+            .ToDictionary(
+                g => g.Key,
+                g => categoryType == CategoryType.SavingGoals
+                    ? ((IEnumerable<dynamic>)g).Sum(e => (decimal)e.SavedAmount)
+                    : ((IEnumerable<dynamic>)g).Sum(e => (decimal)e.Amount)
+            );
 
         return filteredCategories
             .Select(c => new CategorySummaryDTO

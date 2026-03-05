@@ -18,7 +18,8 @@ namespace ExpenseTracker.Infrastructure.Persistence
         public DbSet<Expense> Expenses { get; set; }
         public DbSet<FutureExpense> FutureExpenses { get; set; }
         public DbSet<Income> Incomes { get; set; }
-        public DbSet<Saving> Savings { get; set; }
+        public DbSet<SavingGoal> SavingGoals { get; set; }
+        public DbSet<SavingContribution> SavingContributions { get; set; }
         public DbSet<RefreshToken> RefreshTokens { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)

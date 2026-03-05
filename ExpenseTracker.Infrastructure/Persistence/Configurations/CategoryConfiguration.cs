@@ -34,7 +34,7 @@ namespace ExpenseTracker.Infrastructure.Persistence.Configurations
                    .HasForeignKey(i => i.CategoryId)
                    .OnDelete(DeleteBehavior.Restrict);
 
-            builder.HasMany(c => c.Savings)
+            builder.HasMany(c => c.SavingGoals)
                    .WithOne(s => s.Category)
                    .HasForeignKey(s => s.CategoryId)
                    .OnDelete(DeleteBehavior.Restrict);

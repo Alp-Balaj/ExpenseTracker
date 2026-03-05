@@ -4,7 +4,7 @@
     {
         Expense = 0,
         Income = 1,
-        Savings = 2,
+        SavingGoals = 2,
         FutureExpense = 3
     }
 }

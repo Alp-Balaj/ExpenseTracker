@@ -270,7 +270,44 @@ namespace ExpenseTracker.Infrastructure.Migrations.Postgres
                     b.ToTable("Incomes");
                 });
 
-            modelBuilder.Entity("ExpenseTracker.Domain.Entities.Saving", b =>
+            modelBuilder.Entity("ExpenseTracker.Domain.Entities.SavingContribution", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("Date")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("GoalId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GoalId");
+
+                    b.ToTable("SavingContributions");
+                });
+
+            modelBuilder.Entity("ExpenseTracker.Domain.Entities.SavingGoal", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -279,22 +316,31 @@ namespace ExpenseTracker.Infrastructure.Migrations.Postgres
                     b.Property<Guid>("AccountId")
                         .HasColumnType("uuid");
 
-                    b.Property<decimal>("Amount")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
                     b.Property<Guid>("CategoryId")
                         .HasColumnType("uuid");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<DateTime>("Date")
+                    b.Property<DateTime>("Deadline")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Description")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
+
+                    b.Property<decimal>("SavedAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<decimal>("TargetAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -309,7 +355,7 @@ namespace ExpenseTracker.Infrastructure.Migrations.Postgres
 
                     b.HasIndex("CategoryId");
 
-                    b.ToTable("Savings");
+                    b.ToTable("SavingGoals");
                 });
 
             modelBuilder.Entity("ExpenseTracker.Domain.Entities.User.RefreshToken", b =>
@@ -624,18 +670,30 @@ namespace ExpenseTracker.Infrastructure.Migrations.Postgres
                     b.Navigation("Category");
                 });
 
-            modelBuilder.Entity("ExpenseTracker.Domain.Entities.Saving", b =>
+            modelBuilder.Entity("ExpenseTracker.Domain.Entities.SavingContribution", b =>
+                {
+                    b.HasOne("ExpenseTracker.Domain.Entities.SavingGoal", "SavingGoal")
+                        .WithMany("SavingContributions")
+                        .HasForeignKey("GoalId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("SavingGoal");
+                });
+
+            modelBuilder.Entity("ExpenseTracker.Domain.Entities.SavingGoal", b =>
                 {
                     b.HasOne("ExpenseTracker.Domain.Entities.Account", "Account")
-                        .WithMany("Savings")
+                        .WithMany("SavingGoals")
                         .HasForeignKey("AccountId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("ExpenseTracker.Domain.Entities.Category", "Category")
-                        .WithMany("Savings")
+                        .WithMany("SavingGoals")
                         .HasForeignKey("CategoryId")
-                        .OnDelete(DeleteBehavior.Restrict);
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
 
                     b.Navigation("Account");
 
@@ -699,7 +757,7 @@ namespace ExpenseTracker.Infrastructure.Migrations.Postgres
 
                     b.Navigation("Incomes");
 
-                    b.Navigation("Savings");
+                    b.Navigation("SavingGoals");
                 });
 
             modelBuilder.Entity("ExpenseTracker.Domain.Entities.Category", b =>
@@ -710,7 +768,12 @@ namespace ExpenseTracker.Infrastructure.Migrations.Postgres
 
                     b.Navigation("Incomes");
 
-                    b.Navigation("Savings");
+                    b.Navigation("SavingGoals");
+                });
+
+            modelBuilder.Entity("ExpenseTracker.Domain.Entities.SavingGoal", b =>
+                {
+                    b.Navigation("SavingContributions");
                 });
 #pragma warning restore 612, 618
         }

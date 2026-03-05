@@ -16,7 +16,8 @@ namespace ExpenseTracker.Infrastructure
         public IUserRelatedRepository<Expense> Expenses { get; }
         public IUserRelatedRepository<FutureExpense> FutureExpenses { get; }
         public IUserRelatedRepository<Income> Incomes { get; }
-        public IUserRelatedRepository<Saving> Savings { get; }
+        public IUserRelatedRepository<SavingGoal> SavingGoals { get; }
+        public IUserRelatedRepository<SavingContribution> SavingContributions { get; }
         public IAccountRepository AccountRepository { get; }
         public UnitOfWork(ApplicationDbContext context, ICurrentUserServices currentUserServices)
         {
@@ -29,7 +30,8 @@ namespace ExpenseTracker.Infrastructure
             Expenses = new UserRelatedRepository<Expense>(_context, _currentUserServices);
             FutureExpenses = new UserRelatedRepository<FutureExpense>(_context, _currentUserServices);
             Incomes = new UserRelatedRepository<Income>(_context, _currentUserServices);
-            Savings = new UserRelatedRepository<Saving>(_context, _currentUserServices);
+            SavingGoals = new UserRelatedRepository<SavingGoal>(_context, _currentUserServices);
+            SavingContributions = new UserRelatedRepository<SavingContribution>(_context, _currentUserServices);
             AccountRepository = new AccountRepository(_context, _currentUserServices);
         }
 

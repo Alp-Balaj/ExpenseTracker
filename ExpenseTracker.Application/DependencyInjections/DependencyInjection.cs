@@ -12,6 +12,7 @@ namespace ExpenseTracker.Application.DependencyInjection
 
             services.AddScoped<ICategoryService, CategoryService>();
             services.AddScoped<IAccountServices, AccountServices>();
+            services.AddScoped<ISavingGoalServices, SavingGoalServices>();
 
             return services;
         }
