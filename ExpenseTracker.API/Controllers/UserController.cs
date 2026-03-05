@@ -33,7 +33,7 @@ namespace ExpenseTracker.API.Controllers
         public async Task<IActionResult> SignUp([FromBody] RegisterDto model)
         {
             var user = new User { FirstName = model.FirstName, LastName = model.LastName, UserName = model.FirstName + model.LastName, Email = model.Email };
-            
+
             if(user.UserName == null)
             {
                 return BadRequest();
@@ -160,7 +160,7 @@ namespace ExpenseTracker.API.Controllers
 
             return Ok(new { Token = newAccessToken });
         }
-        
+
         [HttpPost("logout")]
         public async Task<IActionResult> Logout()
         {
@@ -185,7 +185,7 @@ namespace ExpenseTracker.API.Controllers
         #region Helper functions
         private string GenerateJwtToken(User user)
         {
-            var jwtKey = _configuration["Jwt:Key"] 
+            var jwtKey = _configuration["Jwt:Key"]
                 ?? throw new InvalidOperationException("JWT Key is not configured in appsettings.json");
 
             var claims = new[]
@@ -257,4 +257,3 @@ namespace ExpenseTracker.API.Controllers
     public record RegisterDto(string FirstName, string LastName, string Email, string Password);
     public record LoginDto(string Email, string Password);
 }
-    
