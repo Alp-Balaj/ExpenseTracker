@@ -23,8 +23,19 @@ namespace ExpenseTracker.Infrastructure.DependencyInjections
             }
             else if(dbProvider == "PostgreSQL")
             {
+                var connectionString = configuration.GetConnectionString("PostgreSQL");
+
+                // If Railway provides a URI, convert it to Npgsql format
+                if (!string.IsNullOrEmpty(connectionString) && connectionString.StartsWith("postgresql://"))
+                {
+                    var uri = new Uri(connectionString);
+                    connectionString = $"Host={uri.Host};Port={uri.Port};Database={uri.AbsolutePath.TrimStart('/')};Username={uri.UserInfo.Split(':')[0]};Password={uri.UserInfo.Split(':')[1]}";
+                }
+
                 services.AddDbContext<ApplicationDbContext>(options =>
-                    options.UseNpgsql(configuration.GetConnectionString("PostgreSQL")));
+                    options.UseNpgsql(connectionString));
+                // services.AddDbContext<ApplicationDbContext>(options =>
+                //     options.UseNpgsql(configuration.GetConnectionString("PostgreSQL")));
             }
             else
             {
