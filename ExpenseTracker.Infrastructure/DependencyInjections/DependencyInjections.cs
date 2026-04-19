@@ -17,7 +17,7 @@ public static class DependencyInjection
 
         if (dbProvider == "SQLServer")
         {
-            services.AddDbContext<ApplicationDbContext, SQLServerDbContext>(options =>
+            services.AddDbContext<ApplicationDbContext, SQLServerContext>(options =>
                 options.UseSqlServer(configuration.GetConnectionString("SQLServer")));
         }
         else if (dbProvider == "PostgreSQL")
