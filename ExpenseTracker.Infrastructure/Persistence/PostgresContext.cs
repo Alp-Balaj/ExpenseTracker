@@ -1,9 +1,10 @@
 using Microsoft.EntityFrameworkCore;
 
 namespace ExpenseTracker.Infrastructure.Persistence;
+
 public class PostgresContext : ApplicationDbContext
 {
-    public PostgresContext(DbContextOptions<PostgresContext> options)
+    public PostgresContext(DbContextOptions options)
         : base(options)
     {
     }
