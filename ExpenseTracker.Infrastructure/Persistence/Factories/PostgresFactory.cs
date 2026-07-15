@@ -16,7 +16,8 @@ public class PostgresFactory
             .Build();
 
         var connectionString =
-            configuration.GetConnectionString("PostgreSQL");
+            Environment.GetEnvironmentVariable("ET_MIGRATIONS_CONNECTIONSTRING")
+            ?? configuration.GetConnectionString("PostgreSQL");
 
         var optionsBuilder = new DbContextOptionsBuilder<PostgresContext>();
 

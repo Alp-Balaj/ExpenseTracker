@@ -50,36 +50,48 @@ ExpenseTracker/
 
 ## Configuration
 
-Primary configuration lives in `ExpenseTracker.API/appsettings.json`. Important keys:
+Primary configuration lives in `ExpenseTracker.API/appsettings.json`, but the secret values are left
+blank in every tracked file — they're supplied via user-secrets (dev) or environment variables
+(docker/production). Important keys:
 
-- `ConnectionStrings:DefaultConnection` — EF Core connection string
-- `Jwt:Key` — Signing key (DO NOT commit to source control)
+- `ConnectionStrings:PostgreSQL` — Npgsql connection string (active provider)
+- `ConnectionStrings:MongoDbConnection` — MongoDB Atlas connection string (UserPreferences only)
+- `Jwt:Key` — Signing key, **must be ≥ 32 bytes** — the app throws at startup otherwise
 - `Jwt:Issuer`, `Jwt:Audience` — Token issuer and audience
-- `Jwt:ExpiresMinutes` — JWT lifetime (minutes)
-- `RefreshToken:Pepper` (optional) — Optional server-side pepper for refresh token hashing  
+- `RefreshToken:Pepper` (optional) — Server-side pepper for refresh token hashing
 - `RefreshToken:Longevity` — Refresh token longevity (days)
 
-### Example (local development — DO NOT COMMIT secrets):
-```js
-{ 
-    "ConnectionStrings": 
-        { 
-            "DefaultConnection": "Server=localhost; Database=ExpenseTracker; Trusted_Connection=True; TrustServerCertificate=True";
-        },
-    "Jwt": 
-        { 
-            "Key": "<YOUR_SECRET_KEY>", 
-            "Issuer": "https://localhost:42069", 
-            "Audience": "https://localhost:6969", 
-        }, 
-    "RefreshToken": 
-        { 
-            "Pepper": "<OPTIONAL_PEPPER>"
-            "Longevity": 14 
-        } 
-}
+### Secrets
+
+Never put real values in `appsettings*.json`, `appsettings.Migrations.json`, or `docker-compose.yml` —
+those files are tracked in git. Instead:
+
+**Development (`ExpenseTracker.API`, has `UserSecretsId` already configured):**
+```bash
+dotnet user-secrets set "ConnectionStrings:PostgreSQL" "Host=localhost;Port=5432;Database=ExpenseTracker;Username=alp;Password=<...>;"
+dotnet user-secrets set "ConnectionStrings:MongoDbConnection" "mongodb+srv://<user>:<pass>@expensetrackercluster.d9r0itm.mongodb.net/?appName=ExpenseTrackerCluster"
+dotnet user-secrets set "Jwt:Key" "<openssl rand -base64 48>"
+dotnet user-secrets set "RefreshToken:Pepper" "<openssl rand -base64 48>"
 ```
-Use **dotnet user-secrets** or **OS environment variables** to store secrets during development.
+
+**EF Core migrations / design-time factories** (`ExpenseTracker.Infrastructure/Persistence/Factories`)
+read `appsettings.Migrations.json` first, which is tracked with an empty `PostgreSQL` value. Override it
+with an environment variable instead of editing the file:
+```bash
+$env:ET_MIGRATIONS_CONNECTIONSTRING = "Host=localhost;Port=5432;Database=ExpenseTracker;Username=alp;Password=<...>;"
+dotnet ef database update --project ExpenseTracker.Infrastructure
+```
+
+**Docker Compose:** `docker-compose.yml` reads `Jwt__Key` from `${JWT_KEY}`, sourced from a local `.env`
+file (gitignored — see `.env.example` for the expected keys). Compose loads `.env` automatically:
+```bash
+cp .env.example .env
+# edit .env and set JWT_KEY
+docker compose up
+```
+
+If `Jwt:Key` is missing or under 32 bytes from any source, the API throws a clear exception at startup
+instead of silently skipping JWT validation.
 
 ## Run locally
 

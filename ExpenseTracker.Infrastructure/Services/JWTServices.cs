@@ -21,6 +21,14 @@ namespace ExpenseTracker.Infrastructure.Services
             var jwtIssuer = configuration["Jwt:Issuer"];
             var jwtAudience = configuration["Jwt:Audience"];
 
+            if (string.IsNullOrEmpty(jwtKey) || Encoding.UTF8.GetByteCount(jwtKey) < 32)
+            {
+                throw new InvalidOperationException(
+                    "Jwt:Key is missing or shorter than 32 bytes. Set it via `dotnet user-secrets set \"Jwt:Key\" \"...\"` " +
+                    "(development) or the Jwt__Key environment variable (docker/production). " +
+                    "Generate one with `openssl rand -base64 48`.");
+            }
+
             services.AddAuthentication(options =>
             {
                 options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -28,20 +36,17 @@ namespace ExpenseTracker.Infrastructure.Services
             })
             .AddJwtBearer(options =>
             {
-                if (jwtKey != null)
+                options.TokenValidationParameters = new TokenValidationParameters
                 {
-                    options.TokenValidationParameters = new TokenValidationParameters
-                    {
-                        ValidateIssuer = true,
-                        ValidateAudience = true,
-                        ValidateLifetime = true,
-                        ValidateIssuerSigningKey = true,
-                        ValidIssuer = jwtIssuer,
-                        ValidAudience = jwtAudience,
-                        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
-                        ClockSkew = TimeSpan.Zero
-                    };
-                }
+                    ValidateIssuer = true,
+                    ValidateAudience = true,
+                    ValidateLifetime = true,
+                    ValidateIssuerSigningKey = true,
+                    ValidIssuer = jwtIssuer,
+                    ValidAudience = jwtAudience,
+                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
+                    ClockSkew = TimeSpan.Zero
+                };
             });
 
             return services;
