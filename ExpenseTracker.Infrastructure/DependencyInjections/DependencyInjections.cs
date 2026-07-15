@@ -6,47 +6,50 @@ using ExpenseTracker.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Npgsql.EntityFrameworkCore.PostgreSQL;
 
-namespace ExpenseTracker.Infrastructure.DependencyInjections
+namespace ExpenseTracker.Infrastructure.DependencyInjections;
+
+public static class DependencyInjection
 {
-    public static class DependencyInjection
-    {
         public static IServiceCollection AddInfrastructureServices(this IServiceCollection services, IConfiguration configuration)
+    {
+        var dbProvider = configuration["DatabaseProvider"];
+
+        if (dbProvider == "SQLServer")
         {
-            var dbProvider = configuration["DatabaseProvider"];
-
-            if (dbProvider == "SQLServer")
-            {
-                services.AddDbContext<ApplicationDbContext>(options => 
-                    options.UseSqlServer(configuration.GetConnectionString("SQLServer")));
-            }
-            else if(dbProvider == "PostgreSQL")
-            {
-                services.AddDbContext<ApplicationDbContext>(options =>
-                    options.UseNpgsql(configuration.GetConnectionString("PostgreSQL")));
-            }
-            else
-            {
-                throw new Exception($"Couldn't find dbProvider: {dbProvider}");
-            }
-
-            services.AddSingleton<MongoDbContext>();
-
-            services.AddHttpContextAccessor();
-            services.AddScoped<ICurrentUserServices, CurrentUserServices>();
-
-            services.AddScoped<IUnitOfWork, UnitOfWork>();
-
-            services.AddScoped(typeof(IUserRelatedRepository<>), typeof(UserRelatedRepository<>));
-            services.AddScoped(typeof(IAccountRepository), typeof(AccountRepository));
-
-            services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
-
-            services.AddScoped<ITransactionReportService, TransactionReportService>();
-
-            services.AddScoped<IUserPreferencesService, UserPreferencesService>();
-            return services;
+            services.AddDbContext<ApplicationDbContext, SQLServerContext>(options =>
+                options.UseSqlServer(configuration.GetConnectionString("SQLServer")));
         }
+        else if (dbProvider == "PostgreSQL")
+        {
+            var connectionString = configuration.GetConnectionString("PostgreSQL");
+
+            if (!string.IsNullOrEmpty(connectionString) && connectionString.StartsWith("postgresql://"))
+            {
+                var uri = new Uri(connectionString);
+                connectionString = $"Host={uri.Host};Port={uri.Port};Database={uri.AbsolutePath.TrimStart('/')};Username={uri.UserInfo.Split(':')[0]};Password={uri.UserInfo.Split(':')[1]}";
+            }
+
+            services.AddDbContext<ApplicationDbContext, PostgresContext>(options =>
+                options.UseNpgsql(connectionString, npgsqlOptions =>
+                    npgsqlOptions.MigrationsAssembly("ExpenseTracker.Infrastructure")
+                ));
+        }
+        else
+        {
+            throw new Exception($"Couldn't find dbProvider: {dbProvider}");
+        }
+
+        services.AddSingleton<MongoDbContext>();
+        services.AddHttpContextAccessor();
+        services.AddScoped<ICurrentUserServices, CurrentUserServices>();
+        services.AddScoped<IUnitOfWork, UnitOfWork>();
+        services.AddScoped(typeof(IUserRelatedRepository<>), typeof(UserRelatedRepository<>));
+        services.AddScoped(typeof(IAccountRepository), typeof(AccountRepository));
+        services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
+        services.AddScoped<ITransactionReportService, TransactionReportService>();
+        services.AddScoped<IUserPreferencesService, UserPreferencesService>();
+
+        return services;
     }
 }

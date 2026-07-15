@@ -50,15 +50,15 @@ namespace ExpenseTracker.Infrastructure.Services
 
         public static IApplicationBuilder UseCustomSwagger(this IApplicationBuilder app, bool isDevelopment)
         {
-            app.UseSwagger();
-            app.UseSwaggerUI(options =>
+            if (isDevelopment)
             {
-                options.SwaggerEndpoint("/swagger/v1/swagger.json", "Expense Tracker API v1");
-                options.RoutePrefix = "swagger";
-            });
-            // if (isDevelopment)
-            // {
-            // }
+                app.UseSwagger();
+                app.UseSwaggerUI(options =>
+                {
+                    options.SwaggerEndpoint("/swagger/v1/swagger.json", "Expense Tracker API v1");
+                    options.RoutePrefix = "swagger";
+                });
+            }
             return app;
         }
     }
