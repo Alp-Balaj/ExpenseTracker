@@ -1,11 +1,33 @@
-version: "3.9"
-
+# Local rehearsal of the production image. The Dockerfile's context is the PARENT folder
+# holding both clones (backend + frontend), so run this from THIS directory but note the
+# `context: ..` — docker compose resolves the build args to the sibling checkouts.
 services:
   api:
-    build: .
+    build:
+      context: ..
+      dockerfile: ExpenseTracker/Dockerfile
+      args:
+        BACKEND_DIR: ExpenseTracker
+        FRONTEND_DIR: expense-tracker-front
     ports:
       - "8080:8080"
     environment:
-      Jwt__Key: "${JWT_KEY}"
+      ASPNETCORE_ENVIRONMENT: Production
+      DatabaseProvider: PostgreSQL
+      ConnectionStrings__PostgreSQL: "Host=db;Port=5432;Database=ExpenseTracker;Username=postgres;Password=rehearsal"
+      # Secrets stay out of this tracked file — compose reads them from .env (see .env.example).
+      ConnectionStrings__MongoDbConnection: "${MONGO_CONNECTION:?set MONGO_CONNECTION in .env}"
+      Jwt__Key: "${JWT_KEY:?set JWT_KEY in .env — must be >= 32 bytes}"
       Jwt__Issuer: "ExpenseTracker"
       Jwt__Audience: "ExpenseTrackerUsers"
+      RefreshToken__Pepper: "${REFRESH_PEPPER:?set REFRESH_PEPPER in .env}"
+    depends_on:
+      - db
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_PASSWORD: rehearsal
+      POSTGRES_DB: ExpenseTracker
+    ports:
+      - "5433:5432"

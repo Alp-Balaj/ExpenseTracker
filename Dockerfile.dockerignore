@@ -1,0 +1,16 @@
+# BuildKit picks this up because it sits next to the Dockerfile (the build context is the
+# repos' PARENT directory, so a plain .dockerignore at the backend repo root would be
+# invisible). Paths are relative to the context root, hence the **/ prefixes.
+**/.git
+**/bin
+**/obj
+**/node_modules
+**/build
+**/dist
+**/.vite
+**/TestResults
+# Local dev secrets/certs — .env.production (same-origin API base URL) is deliberately NOT
+# ignored, it is what the frontend build stage needs.
+**/.env
+**/.env.local
+**/*.pem
