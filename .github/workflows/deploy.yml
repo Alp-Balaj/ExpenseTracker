@@ -36,12 +36,15 @@ jobs:
         with:
           path: backend
 
+      # READ_FRONTEND_REPO: a PAT that can READ the expense-tracker-front repo. It is stored
+      # here (on the backend repo) because this is where the workflow runs, but it is scoped
+      # to the OTHER repo — the name says what it opens, not where it lives.
       - name: Checkout frontend
         uses: actions/checkout@v4
         with:
           repository: ${{ github.repository_owner }}/expense-tracker-front
           ref: master
-          token: ${{ secrets.FRONTEND_REPO_TOKEN }}
+          token: ${{ secrets.READ_FRONTEND_REPO }}
           path: frontend
 
       - name: Set up Docker Buildx

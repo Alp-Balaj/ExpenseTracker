@@ -23,21 +23,48 @@ cross-site. Served from one host it is a plain first-party cookie.
 
 ## 1. One-time provisioning
 
-### GitHub (backend repo `ExpenseTracker`)
+### GitHub — the two cross-repo PATs
 
-Actions secrets:
+Each repo's workflow reaches into the *other* repo, so each holds a PAT scoped to its
+counterpart. **A secret is only readable by workflows running in the repo that holds it**,
+which is why the token for reading the frontend lives on the backend. The names say what
+the token opens, not where it is stored — name the PAT in your GitHub account settings
+identically to the secret and there is nothing left to mix up.
+
+| Secret name | Lives on (where the workflow runs) | Scoped to (what it opens) | Permission | Used by |
+|---|---|---|---|---|
+| `READ_FRONTEND_REPO` | `ExpenseTracker` | `expense-tracker-front` | Contents: **Read** | `deploy.yml` → Checkout frontend |
+| `DISPATCH_TO_BACKEND_REPO` | `expense-tracker-front` | `ExpenseTracker` | Contents: **Read and write** | `notify-deploy.yml` → repository_dispatch |
+
+Read is enough for the checkout; the dispatch needs write because `POST /repos/…/dispatches`
+is a mutating call. Fine-grained PATs default to "Public repositories" with no permissions —
+both repos are private, so **Repository access** must explicitly select the target repo and
+**Repository permissions → Contents** must be set, or you get
+`403 / Write access to repository not granted` even for a read.
+
+### GitHub (backend repo `ExpenseTracker`) — Railway secrets
 
 | Secret | Value |
 |---|---|
-| `FRONTEND_REPO_TOKEN` | Fine-grained PAT, `expense-tracker-front` only, Contents: read. Lets deploy.yml check out the frontend. |
 | `RAILWAY_TOKEN` | Railway **project token** (project → Settings → Tokens). Until this exists, deploy.yml builds+pushes the image but skips the redeploy step. |
 | `RAILWAY_SERVICE_ID` | The Railway service name or ID to redeploy. |
 
-### GitHub (frontend repo `expense-tracker-front`)
+### Setting a secret without mixing it up
 
-Actions secret `BACKEND_DISPATCH_TOKEN`: fine-grained PAT, `ExpenseTracker` only,
-Contents: read-write (repository_dispatch requires write). The workflow itself
-(`.github/workflows/notify-deploy.yml`) is already committed in that repo.
+`gh secret set` does not strip a trailing newline, and an empty paste stores an empty value
+that fails as `could not read Username` (git) or `set the GH_TOKEN environment variable`
+(gh) rather than as a permission error. This checks the value reached the shell and can
+actually see the target repo before storing it:
+
+```sh
+read -rs TOKEN
+echo "length: ${#TOKEN}"                       # must be non-zero
+curl -s -o /dev/null -w "%{http_code}\n" \     # must be 200
+  -H "Authorization: Bearer $TOKEN" \
+  https://api.github.com/repos/Alp-Balaj/expense-tracker-front
+printf '%s' "$TOKEN" | gh secret set READ_FRONTEND_REPO --repo Alp-Balaj/ExpenseTracker
+unset TOKEN
+```
 
 ### MongoDB Atlas
 
