@@ -36,6 +36,21 @@ jobs:
         with:
           path: backend
 
+      # An empty `gh secret set` paste stores an EMPTY value: the secret then lists fine but
+      # expands to "", and checkout fails with "Input required and not supplied: token",
+      # which reads like a workflow bug rather than a secret problem. Fail here instead,
+      # naming the actual cause. Printing the length is safe — the value stays masked.
+      - name: Verify READ_FRONTEND_REPO is present
+        env:
+          TOK: ${{ secrets.READ_FRONTEND_REPO }}
+        run: |
+          if [ -z "$TOK" ]; then
+            echo "::error::READ_FRONTEND_REPO is unset or empty on Alp-Balaj/ExpenseTracker."
+            echo "Re-set it with: printf '%s' \"\$TOKEN\" | gh secret set READ_FRONTEND_REPO --repo Alp-Balaj/ExpenseTracker"
+            exit 1
+          fi
+          echo "READ_FRONTEND_REPO present (${#TOK} chars)"
+
       # READ_FRONTEND_REPO: a PAT that can READ the expense-tracker-front repo. It is stored
       # here (on the backend repo) because this is where the workflow runs, but it is scoped
       # to the OTHER repo — the name says what it opens, not where it lives.
