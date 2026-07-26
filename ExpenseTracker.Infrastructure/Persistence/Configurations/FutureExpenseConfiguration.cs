@@ -26,7 +26,6 @@ namespace ExpenseTracker.Infrastructure.Persistence.Configurations
             builder.HasOne(f => f.Category)
                    .WithMany(c => c.FutureExpenses)
                    .HasForeignKey(f => f.CategoryId)
-                   .IsRequired(false)
                    .OnDelete(DeleteBehavior.Restrict);
         }
     }

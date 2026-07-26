@@ -1,5 +1,4 @@
-﻿using DnsClient.Protocol;
-using ExpenseTracker.Application.Validation;
+﻿using ExpenseTracker.Application.Validation;
 using ExpenseTracker.Domain.Entities.User;
 using ExpenseTracker.Domain.Interfaces;
 using ExpenseTracker.Infrastructure.Security;

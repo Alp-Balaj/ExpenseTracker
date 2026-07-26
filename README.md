@@ -9,7 +9,7 @@ The API is designed to be consumed by a React frontend and exposes interactive d
 - Target framework: .NET 8, C# 12
 - Architecture: Layered (API / Application / Domain / Infrastructure)
 - Authentication: ASP.NET Core Identity with JWT access tokens and secure refresh tokens ([Read more](#authentication--refresh-tokens))
-- Persistence: Entity Framework Core (SQL Server by default)
+- Persistence: Entity Framework Core (PostgreSQL by default; SQL Server also supported)
 - Migrations: `ExpenseTracker.Infrastructure/Migrations`
 - API docs: Swagger UI enabled in Development via `AddCustomSwagger()` / `UseCustomSwagger(...)`  
 - CORS:Dedicated policy for React frontend (`ReactCors`)
@@ -46,7 +46,7 @@ ExpenseTracker/
 ## Prerequisites
 
 - .NET 8 SDK
-- SQL Server (or another EF Core provider if adapted)
+- PostgreSQL (SQL Server also supported via the SQL Server migrations/provider)
 
 ## Configuration
 

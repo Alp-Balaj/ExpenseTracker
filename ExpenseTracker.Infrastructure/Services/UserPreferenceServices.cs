@@ -33,22 +33,15 @@ public class UserPreferencesService : IUserPreferencesService
 
     public async Task UpdateAsync(UserPreferences updated)
     {
-        try
-        {
-            var update = Builders<UserPreferences>.Update
-            .SetOnInsert(x => x.UserId, _user.UserId)
-            .Set(x => x.Theme, updated.Theme)
-            .Set(x => x.BaseCurrency, updated.BaseCurrency);
+        var update = Builders<UserPreferences>.Update
+        .SetOnInsert(x => x.UserId, _user.UserId)
+        .Set(x => x.Theme, updated.Theme)
+        .Set(x => x.BaseCurrency, updated.BaseCurrency);
 
-            await _collection.UpdateOneAsync(
-                x => x.UserId == _user.UserId,
-                update,
-                new UpdateOptions { IsUpsert = true }
-            );
-        }
-        catch (Exception)
-        {
-            throw;
-        }
+        await _collection.UpdateOneAsync(
+            x => x.UserId == _user.UserId,
+            update,
+            new UpdateOptions { IsUpsert = true }
+        );
     }
 }
