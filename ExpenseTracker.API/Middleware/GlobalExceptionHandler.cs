@@ -32,6 +32,10 @@ namespace ExpenseTracker.API.Middleware
                     StatusCodes.Status404NotFound,
                     "Not Found",
                     "The requested resource was not found."),
+                InvalidOperationException when exception.Message.Contains("User ID claim") => (
+                    StatusCodes.Status401Unauthorized,
+                    "Unauthorized",
+                    "Authentication failed: user identity information is missing."),
                 DbUpdateException => (
                     StatusCodes.Status409Conflict,
                     "Conflict",

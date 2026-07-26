@@ -13,9 +13,16 @@ namespace ExpenseTracker.Infrastructure.Services
             _httpContextAccessor = httpContextAccessor;
         }
 
-        public string UserId =>
-            _httpContextAccessor.HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier) 
-            ?? string.Empty;
+        public string UserId
+        {
+            get
+            {
+                var userId = _httpContextAccessor.HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrEmpty(userId))
+                    throw new InvalidOperationException("User ID claim not found. Ensure the authentication token includes the NameIdentifier claim.");
+                return userId;
+            }
+        }
         public string UserName =>
         _httpContextAccessor.HttpContext?.User.FindFirstValue(ClaimTypes.Name)
         ?? "Unknown";
