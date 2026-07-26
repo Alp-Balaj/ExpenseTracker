@@ -22,4 +22,8 @@ jobs:
       - name: Build
         run: dotnet build ExpenseTracker.sln --no-restore --configuration Release
 
-      # No test projects in the solution yet — add a `dotnet test` step here when one lands.
+      # ExpenseTracker.Tests spins up its own Postgres via Testcontainers (one container per
+      # test run, see CustomWebApplicationFactory) -- ubuntu-latest runners have Docker
+      # preinstalled and it needs no `services:` block or extra connection string secret.
+      - name: Test
+        run: dotnet test ExpenseTracker.sln --no-build --configuration Release --logger "console;verbosity=normal"
