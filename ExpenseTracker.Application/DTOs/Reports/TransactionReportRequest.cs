@@ -5,10 +5,10 @@ namespace ExpenseTracker.Application.DTOs.Reports;
 public sealed class TransactionReportRequest
 {
     [NotDefault]
-    public DateTime From { get; init; }
+    public DateOnly From { get; init; }
 
     [NotDefault]
-    public DateTime To { get; init; }
+    public DateOnly To { get; init; }
 
     public Guid[]? CategoryIds { get; init; }
     public Guid[]? AccountIds { get; init; }

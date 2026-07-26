@@ -18,7 +18,7 @@ namespace ExpenseTracker.Domain.Entities
         }
         public required Guid GoalId { get; set; }
         public required decimal Amount { get; set; }
-        public required DateTime Date { get; set; }
+        public required DateOnly Date { get; set; }
         public string? Note { get; set; }
 
         public required SavingGoal SavingGoal { get; set; }

@@ -17,7 +17,7 @@ namespace ExpenseTracker.Application.DTOs
         public decimal SavedAmount { get; set; }
 
         [NotDefault]
-        public DateTime Deadline { get; set; }
+        public DateOnly Deadline { get; set; }
 
         [MaxLength(500)]
         public string? Description { get; set; }

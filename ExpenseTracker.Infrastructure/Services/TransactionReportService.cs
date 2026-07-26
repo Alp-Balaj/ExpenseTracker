@@ -94,11 +94,9 @@ namespace ExpenseTracker.Infrastructure.Services
                 throw new ArgumentException(
                     "At least one of IncludeExpenses or IncludeIncomes must be true.");
         }
-        private static (DateTime from, DateTime toExclusive) NormalizeRange(DateTime from, DateTime to)
+        private static (DateOnly from, DateOnly toExclusive) NormalizeRange(DateOnly from, DateOnly to)
         {
-            var f = from.Date;
-            var tExclusive = to.Date.AddDays(1);
-            return (f, tExclusive);
+            return (from, to.AddDays(1));
         }
     }
 }

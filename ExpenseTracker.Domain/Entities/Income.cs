@@ -18,7 +18,7 @@ namespace ExpenseTracker.Domain.Entities
             Category = null!;
         }
         public required decimal Amount { get; set; }
-        public required DateTime Date { get; set; }
+        public required DateOnly Date { get; set; }
         public string? Description { get; set; }
 
         public required Guid AccountId { get; set; }

@@ -15,7 +15,7 @@ namespace ExpenseTracker.Application.DTOs
         public decimal Amount { get; set; }
 
         [NotDefault]
-        public DateTime Date { get; set; }
+        public DateOnly Date { get; set; }
 
         [MaxLength(500)]
         public string? Note { get; set; }

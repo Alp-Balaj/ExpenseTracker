@@ -4,7 +4,7 @@ namespace ExpenseTracker.Application.DTOs.Reports;
 
 public sealed class TransactionReportRow
 {
-    public DateTime Date { get; init; }
+    public DateOnly Date { get; init; }
 
     public TransactionKind Kind { get; init; }
 

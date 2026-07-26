@@ -158,8 +158,8 @@ namespace ExpenseTracker.Infrastructure.Migrations.Postgres
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<DateTime>("Date")
-                        .HasColumnType("timestamp with time zone");
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date");
 
                     b.Property<string>("Description")
                         .HasMaxLength(500)
@@ -206,8 +206,8 @@ namespace ExpenseTracker.Infrastructure.Migrations.Postgres
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
 
-                    b.Property<DateTime?>("PredictedDate")
-                        .HasColumnType("timestamp with time zone");
+                    b.Property<DateOnly?>("PredictedDate")
+                        .HasColumnType("date");
 
                     b.Property<string>("Title")
                         .IsRequired()
@@ -247,8 +247,8 @@ namespace ExpenseTracker.Infrastructure.Migrations.Postgres
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<DateTime>("Date")
-                        .HasColumnType("timestamp with time zone");
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date");
 
                     b.Property<string>("Description")
                         .HasMaxLength(500)
@@ -283,8 +283,8 @@ namespace ExpenseTracker.Infrastructure.Migrations.Postgres
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<DateTime>("Date")
-                        .HasColumnType("timestamp with time zone");
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date");
 
                     b.Property<Guid>("GoalId")
                         .HasColumnType("uuid");
@@ -322,8 +322,8 @@ namespace ExpenseTracker.Infrastructure.Migrations.Postgres
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<DateTime>("Deadline")
-                        .HasColumnType("timestamp with time zone");
+                    b.Property<DateOnly>("Deadline")
+                        .HasColumnType("date");
 
                     b.Property<string>("Description")
                         .HasMaxLength(500)

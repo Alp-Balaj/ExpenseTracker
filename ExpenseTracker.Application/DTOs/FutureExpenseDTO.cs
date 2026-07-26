@@ -14,7 +14,7 @@ namespace ExpenseTracker.Application.DTOs
         public decimal Amount { get; set; }
 
         [NotDefault]
-        public DateTime? Date { get; set; }
+        public DateOnly? Date { get; set; }
 
         [NotDefault]
         public Guid CategoryId { get; set; }
