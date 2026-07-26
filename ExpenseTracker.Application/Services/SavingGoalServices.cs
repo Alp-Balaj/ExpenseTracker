@@ -10,20 +10,23 @@ public class SavingGoalServices: ISavingGoalServices
     {
         _savingGoalRepo = savingGoalRepo;
     }
-    public async Task<(bool Success, string ErrorMessage)> UpdateSavingGoalAmount(Guid goalId, decimal amount)
+    // Applies a signed delta to the goal's SavedAmount. Negative deltas are
+    // legal here (contribution edit/delete reversal); the "amount > 0" rule
+    // for a contribution itself is enforced by the controller.
+    public async Task<(bool Success, string ErrorMessage)> UpdateSavingGoalAmount(Guid goalId, decimal delta)
     {
-        if(amount < 0)
-            return (false, "Amount must be greater than zero.");
-            
+        if (delta == 0)
+            return (true, "");
+
         var goal = await _savingGoalRepo.GetUserDataByIdAsync(goalId);
 
         if (goal == null)
-            return (false, "Account not found");
+            return (false, "Saving goal not found");
 
         if (goal.UserId != _savingGoalRepo.GetCurrentUserId())
-            return (false, "Account does not belong to this user.");
+            return (false, "Saving goal does not belong to this user.");
 
-        goal.SavedAmount += amount;
+        goal.SavedAmount += delta;
 
         _savingGoalRepo.UpdateUserData(goal);
 

@@ -23,10 +23,12 @@ namespace ExpenseTracker.Application.Mapping
             return new SavingGoal
             {
                 UserId = null!,
-                
+
                 Title = dto.Title,
                 TargetAmount = dto.TargetAmount,
-                SavedAmount = dto.SavedAmount,
+                // SavedAmount is server-maintained: a new goal starts at 0 and
+                // changes only through contributions.
+                SavedAmount = 0,
                 Deadline = dto.Deadline,
                 Description = dto.Description,
                 CategoryId = dto.CategoryId,
@@ -37,7 +39,8 @@ namespace ExpenseTracker.Application.Mapping
         {
             entity.Title = dto.Title;
             entity.TargetAmount = dto.TargetAmount;
-            entity.SavedAmount = dto.SavedAmount;
+            // SavedAmount is intentionally not applied: it changes only
+            // through contributions.
             entity.Deadline = dto.Deadline;
             entity.Description = dto.Description;
             entity.CategoryId = dto.CategoryId;

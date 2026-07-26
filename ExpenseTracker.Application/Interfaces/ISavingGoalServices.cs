@@ -3,5 +3,5 @@
 namespace ExpenseTracker.Application.Interfaces;
 public interface ISavingGoalServices
 {
-    Task<(bool Success, string ErrorMessage)> UpdateSavingGoalAmount(Guid goalId, decimal amount);
+    Task<(bool Success, string ErrorMessage)> UpdateSavingGoalAmount(Guid goalId, decimal delta);
 }
