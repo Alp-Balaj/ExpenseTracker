@@ -3,6 +3,7 @@ using ExpenseTracker.Application.Validation;
 using ExpenseTracker.Domain.Entities.User;
 using ExpenseTracker.Domain.Interfaces;
 using ExpenseTracker.Infrastructure.Security;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -236,6 +237,80 @@ namespace ExpenseTracker.API.Controllers
             return Ok();
         }
 
+        [Authorize]
+        [HttpPost("change-password")]
+        [EnableRateLimiting("auth")]
+        public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordDto model)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized();
+
+            var user = await _userManager.FindByIdAsync(userId);
+            if (user == null)
+                return Unauthorized();
+
+            // Verifies the current password and runs Identity's password validators.
+            var result = await _userManager.ChangePasswordAsync(user, model.CurrentPassword, model.NewPassword);
+            if (!result.Succeeded)
+            {
+                _logger.LogWarning("Password change failed for user {UserId}: {Errors}", user.Id,
+                    string.Join("; ", result.Errors.Select(e => e.Code)));
+
+                return BadRequest(new
+                {
+                    message = "Password change failed.",
+                    errors = result.Errors.Select(e => e.Description).ToArray()
+                });
+            }
+
+            // Sessions established under the old password must die with it — a thief holding
+            // a refresh token keeps rotating forever otherwise. This also revokes the current
+            // session's refresh token; its access token stays valid until expiry, after which
+            // the user logs in again with the new password.
+            await _refreshTokenRepository.RevokeAllActiveForUserAsync(user.Id);
+            await _refreshTokenRepository.SaveAsync();
+            ClearRefreshCookie();
+
+            _logger.LogInformation("Password changed for user {UserId}; all refresh tokens revoked", user.Id);
+
+            return Ok(new { message = "Password changed successfully" });
+        }
+
+        [Authorize]
+        [HttpPut("profile")]
+        public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileDto model)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized();
+
+            var user = await _userManager.FindByIdAsync(userId);
+            if (user == null)
+                return Unauthorized();
+
+            // Email is deliberately not updatable here: it is the login identifier
+            // (Login uses FindByEmailAsync), so changing it needs its own verified flow.
+            var newUsername = model.Username.Trim();
+            if (!string.Equals(user.UserName, newUsername, StringComparison.Ordinal))
+            {
+                var result = await _userManager.SetUserNameAsync(user, newUsername);
+                if (!result.Succeeded)
+                {
+                    return BadRequest(new
+                    {
+                        message = "Profile update failed.",
+                        errors = result.Errors.Select(e => e.Description).ToArray()
+                    });
+                }
+            }
+
+            // The sidebar reads the username from the JWT's unique_name claim, so hand
+            // back a fresh access token carrying the new value.
+            var token = GenerateJwtToken(user);
+            return Ok(new { Token = token });
+        }
+
         #endregion
         #region Helper functions
         private string GenerateJwtToken(User user)
@@ -317,5 +392,10 @@ namespace ExpenseTracker.API.Controllers
     public record LoginDto(
         [Required, EmailAddress] string Email,
         [Required] string Password);
+    public record ChangePasswordDto(
+        [Required] string CurrentPassword,
+        [Required] string NewPassword);
+    public record UpdateProfileDto(
+        [Required, NotWhitespace, MaxLength(100)] string Username);
 }
     
