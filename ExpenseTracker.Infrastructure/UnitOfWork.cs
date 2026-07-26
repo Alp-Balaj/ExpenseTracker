@@ -3,6 +3,7 @@ using ExpenseTracker.Domain.Entities;
 using ExpenseTracker.Domain.Interfaces;
 using ExpenseTracker.Infrastructure.Persistence;
 using ExpenseTracker.Infrastructure.Repositories;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace ExpenseTracker.Infrastructure
 {
@@ -37,6 +38,18 @@ namespace ExpenseTracker.Infrastructure
 
         public async Task<int> SaveAsync() => await _context.SaveChangesAsync();
 
+        public async Task<IUnitOfWorkTransaction> BeginTransactionAsync() =>
+            new EfUnitOfWorkTransaction(await _context.Database.BeginTransactionAsync());
+
         public void Dispose() => _context.Dispose();
+
+        private sealed class EfUnitOfWorkTransaction : IUnitOfWorkTransaction
+        {
+            private readonly IDbContextTransaction _transaction;
+            public EfUnitOfWorkTransaction(IDbContextTransaction transaction) => _transaction = transaction;
+            public Task CommitAsync() => _transaction.CommitAsync();
+            public Task RollbackAsync() => _transaction.RollbackAsync();
+            public ValueTask DisposeAsync() => _transaction.DisposeAsync();
+        }
     }
 }

@@ -35,7 +35,8 @@ namespace ExpenseTracker.Application.Mapping
         {
             entity.Name = dto.Name;
             entity.AmountType = (AmountType)dto.AmountType;
-            entity.Balance = dto.Balance;
+            // Balance is intentionally not applied: after creation it changes
+            // only through expense/income transactions.
             entity.CurrencyId = dto.CurrencyId;
             entity.Description = dto.Description;
         }

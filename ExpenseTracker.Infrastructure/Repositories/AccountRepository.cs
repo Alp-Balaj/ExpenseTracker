@@ -28,5 +28,14 @@ namespace ExpenseTracker.Infrastructure.Repositories
                 .Include(e => e.Currency)
                 .ToListAsync();
         }
+
+        public async Task<bool> AdjustBalanceAsync(Guid accountId, decimal delta)
+        {
+            var affected = await _dbSet
+                .Where(a => a.Id == accountId && a.UserId == _UserId)
+                .ExecuteUpdateAsync(s => s.SetProperty(a => a.Balance, a => a.Balance + delta));
+
+            return affected > 0;
+        }
     }
 }

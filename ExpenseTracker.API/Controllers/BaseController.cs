@@ -51,7 +51,7 @@ namespace ExpenseTracker.API.Controllers
         }
 
         [HttpPut("{id:guid}")]
-        public async Task<IActionResult> Update(Guid id, [FromBody] TDto dto)
+        public virtual async Task<IActionResult> Update(Guid id, [FromBody] TDto dto)
         {
             var entity = await _repository.GetUserDataByIdAsync(id);
             if (entity == null) return NotFound();
@@ -64,7 +64,7 @@ namespace ExpenseTracker.API.Controllers
         }
 
         [HttpDelete("{id:guid}")]
-        public async Task<IActionResult> Delete(Guid id)
+        public virtual async Task<IActionResult> Delete(Guid id)
         {
             var entity = await _repository.GetUserDataByIdAsync(id);
             if (entity == null) return NotFound();
