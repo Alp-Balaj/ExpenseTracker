@@ -56,6 +56,23 @@ var app = builder.Build();
 app.UseCustomSwagger(app.Environment.IsDevelopment());
 app.UseExceptionHandler();
 
+// Baseline security headers on every response (API, Swagger UI, and the SPA in wwwroot).
+app.Use(async (context, next) =>
+{
+    context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+    context.Response.Headers["X-Frame-Options"] = "DENY";
+    context.Response.Headers["Referrer-Policy"] = "no-referrer";
+    await next();
+});
+
+// HSTS outside Development. Note: the middleware only emits the header on HTTPS requests,
+// and Railway forwards plain http (TLS ends at its proxy) — so it takes effect only where
+// the app itself terminates TLS. Harmless no-op behind the proxy.
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHsts();
+}
+
 // Development only: Railway terminates TLS at its proxy and forwards plain http, so
 // redirecting in production would bounce every request into a loop.
 if (app.Environment.IsDevelopment())

@@ -1,4 +1,4 @@
-﻿using ExpenseTracker.Domain.Entities;
+using ExpenseTracker.Domain.Entities;
 using ExpenseTracker.Domain.Entities.User;
 using ExpenseTracker.Domain.Interfaces;
 using ExpenseTracker.Infrastructure.Persistence;
@@ -6,6 +6,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ExpenseTracker.Infrastructure.Repositories
 {
+    // Mutations only stage changes; callers commit with SaveAsync so multi-step
+    // operations (revoke old + add new during rotation) persist atomically.
     public class RefreshTokenRepository : IRefreshTokenRepository
     {
         private readonly ApplicationDbContext _context;
@@ -15,10 +17,9 @@ namespace ExpenseTracker.Infrastructure.Repositories
             _context = context;
         }
 
-        public async Task AddAsync(RefreshToken token)
+        public void Add(RefreshToken token)
         {
             _context.RefreshTokens.Add(token);
-            await _context.SaveChangesAsync();
         }
 
         public Task<RefreshToken?> GetByHashAsync(string tokenHash)
@@ -26,11 +27,10 @@ namespace ExpenseTracker.Infrastructure.Repositories
             return _context.RefreshTokens.SingleOrDefaultAsync(x => x.TokenHash == tokenHash);
         }
 
-        public async Task RevokeAsync(RefreshToken token, string? replacedByTokenHash = null)
+        public void Revoke(RefreshToken token, string? replacedByTokenHash = null)
         {
             token.RevokedAtUtc = DateTime.UtcNow;
             token.ReplacedByTokenHash = replacedByTokenHash;
-            await _context.SaveChangesAsync();
         }
 
         public async Task RevokeAllActiveForUserAsync(string userId)
@@ -43,8 +43,8 @@ namespace ExpenseTracker.Infrastructure.Repositories
 
             foreach (var t in active)
                 t.RevokedAtUtc = now;
-
-            await _context.SaveChangesAsync();
         }
+
+        public Task SaveAsync() => _context.SaveChangesAsync();
     }
 }

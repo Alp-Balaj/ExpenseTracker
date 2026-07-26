@@ -61,13 +61,32 @@ namespace ExpenseTracker.API.Controllers
                     attempts++;
 
                     if (attempts > 10)
-                        throw new Exception("Could not generate a unique username");
+                    {
+                        _logger.LogError("Signup failed: could not generate a unique username for {Email}", model.Email);
+                        return BadRequest(new { message = "Registration failed — check your details." });
+                    }
                 }
             }
 
             var result = await _userManager.CreateAsync(user, model.Password);
             if (!result.Succeeded)
-                return BadRequest(result.Errors);
+            {
+                _logger.LogWarning("Signup failed for {Email}: {Errors}", model.Email,
+                    string.Join("; ", result.Errors.Select(e => $"{e.Code}: {e.Description}")));
+
+                // Only password-policy errors are safe to echo back; anything else
+                // (duplicate email/username) would let a caller probe existing accounts.
+                var passwordErrors = result.Errors
+                    .Where(e => e.Code.StartsWith("Password"))
+                    .Select(e => e.Description)
+                    .ToArray();
+
+                return BadRequest(new
+                {
+                    message = "Registration failed — check your details.",
+                    errors = new { password = passwordErrors }
+                });
+            }
 
             return Ok("User registered successfully");
         }
@@ -105,7 +124,7 @@ namespace ExpenseTracker.API.Controllers
             var refreshExpiresUtc = DateTime.UtcNow.AddDays(days);
 
             // Add hashed refresh to db
-            await _refreshTokenRepository.AddAsync(new RefreshToken
+            _refreshTokenRepository.Add(new RefreshToken
             {
                 Id = Guid.NewGuid(),
                 UserId = user.Id,
@@ -113,6 +132,7 @@ namespace ExpenseTracker.API.Controllers
                 CreatedAtUtc = DateTime.UtcNow,
                 ExpiresAtUtc = refreshExpiresUtc
             });
+            await _refreshTokenRepository.SaveAsync();
 
             // Add raw refresh in HttpOnly cookie
             SetRefreshCookie(rawRefreshToken, refreshExpiresUtc);
@@ -143,6 +163,15 @@ namespace ExpenseTracker.API.Controllers
             // Validate it
             if (!existing.IsActive)
             {
+                // A revoked token coming back means the rotation chain leaked: someone
+                // (user or thief) holds a stale copy. Kill every session for the user.
+                if (existing.RevokedAtUtc != null)
+                {
+                    _logger.LogWarning("Revoked refresh token reused for user {UserId}; revoking all active refresh tokens", existing.UserId);
+                    await _refreshTokenRepository.RevokeAllActiveForUserAsync(existing.UserId);
+                    await _refreshTokenRepository.SaveAsync();
+                }
+
                 ClearRefreshCookie();
                 return Unauthorized("Expired or revoked refresh token");
             }
@@ -163,9 +192,11 @@ namespace ExpenseTracker.API.Controllers
             var days = int.TryParse(daysStr, out var d) ? d : 14;
             var newExpiresUtc = DateTime.UtcNow.AddDays(days);
 
-            await _refreshTokenRepository.RevokeAsync(existing, replacedByTokenHash: newHash);
+            // Revoke + add are staged together and committed in one save, so a crash
+            // mid-rotation can't leave the user with no valid token.
+            _refreshTokenRepository.Revoke(existing, replacedByTokenHash: newHash);
 
-            await _refreshTokenRepository.AddAsync(new RefreshToken
+            _refreshTokenRepository.Add(new RefreshToken
             {
                 Id = Guid.NewGuid(),
                 UserId = user.Id,
@@ -173,6 +204,8 @@ namespace ExpenseTracker.API.Controllers
                 CreatedAtUtc = DateTime.UtcNow,
                 ExpiresAtUtc = newExpiresUtc
             });
+
+            await _refreshTokenRepository.SaveAsync();
 
             SetRefreshCookie(newRaw, newExpiresUtc);
 
@@ -194,7 +227,8 @@ namespace ExpenseTracker.API.Controllers
                 var existing = await _refreshTokenRepository.GetByHashAsync(hash);
                 if (existing != null && existing.RevokedAtUtc == null)
                 {
-                    await _refreshTokenRepository.RevokeAsync(existing);
+                    _refreshTokenRepository.Revoke(existing);
+                    await _refreshTokenRepository.SaveAsync();
                 }
             }
 
