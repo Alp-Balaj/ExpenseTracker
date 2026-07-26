@@ -23,6 +23,14 @@ namespace ExpenseTracker.API.Controllers
         protected abstract TEntity ToEntity(TDto dto);
         protected abstract void ApplyUpdates(TEntity entity, TDto dto);
 
+        // Ownership check for reference ids the client supplies inside the DTO
+        // (AccountId, CategoryId, ...). Returns an error message when a
+        // reference does not resolve to a row owned by the current user, null
+        // when all references are valid. The message must not distinguish
+        // "exists but foreign" from "does not exist".
+        protected virtual Task<string?> ValidateReferencesAsync(TDto dto) =>
+            Task.FromResult<string?>(null);
+
 
         [HttpGet]
         public virtual async Task<IActionResult> GetAll()
@@ -43,6 +51,9 @@ namespace ExpenseTracker.API.Controllers
         [HttpPost]
         public virtual async Task<IActionResult> Create([FromBody] TDto dto)
         {
+            var referenceError = await ValidateReferencesAsync(dto);
+            if (referenceError != null) return BadRequest(referenceError);
+
             var entity = ToEntity(dto);
             await _repository.AddAsync(entity);
             await _unitOfWork.SaveAsync();
@@ -55,6 +66,9 @@ namespace ExpenseTracker.API.Controllers
         {
             var entity = await _repository.GetUserDataByIdAsync(id);
             if (entity == null) return NotFound();
+
+            var referenceError = await ValidateReferencesAsync(dto);
+            if (referenceError != null) return BadRequest(referenceError);
 
             ApplyUpdates(entity, dto);
             _repository.UpdateUserData(entity);

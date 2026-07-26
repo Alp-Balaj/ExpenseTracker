@@ -29,6 +29,9 @@ namespace ExpenseTracker.API.Controllers
         [HttpPost]
         public override async Task<IActionResult> Create([FromBody] TDto dto)
         {
+            var referenceError = await ValidateReferencesAsync(dto);
+            if (referenceError != null) return BadRequest(referenceError);
+
             var entity = ToEntity(dto);
 
             if (AmountOf(entity) <= 0)
@@ -54,6 +57,9 @@ namespace ExpenseTracker.API.Controllers
         {
             var entity = await _repository.GetUserDataByIdAsync(id);
             if (entity == null) return NotFound();
+
+            var referenceError = await ValidateReferencesAsync(dto);
+            if (referenceError != null) return BadRequest(referenceError);
 
             var oldAmount = AmountOf(entity);
             var oldAccountId = AccountIdOf(entity);

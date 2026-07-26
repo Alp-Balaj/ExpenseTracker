@@ -13,9 +13,13 @@ namespace ExpenseTracker.API.Controllers
     [Route("api/[controller]")]
     public class ExpenseController : TransactionControllerBase<Expense, ExpenseDTO>
     {
-        public ExpenseController(IUnitOfWork uow, IUserRelatedRepository<Expense> repo, IAccountServices accountServices)
+        private readonly IUserRelatedRepository<Category> _categoryRepository;
+
+        public ExpenseController(IUnitOfWork uow, IUserRelatedRepository<Expense> repo, IAccountServices accountServices,
+            IUserRelatedRepository<Category> categoryRepository)
             : base(uow, repo, accountServices)
         {
+            _categoryRepository = categoryRepository;
         }
         protected override ExpenseDTO ToDto(Expense entity) => entity.ToDto();
         protected override Expense ToEntity(ExpenseDTO dto) => dto.ToEntity();
@@ -24,5 +28,14 @@ namespace ExpenseTracker.API.Controllers
         protected override int BalanceSign => -1;
         protected override decimal AmountOf(Expense entity) => entity.Amount;
         protected override Guid AccountIdOf(Expense entity) => entity.AccountId;
+
+        // AccountId is already ownership-checked by the user-scoped balance
+        // adjustment; CategoryId has no such side effect, so check it here.
+        protected override async Task<string?> ValidateReferencesAsync(ExpenseDTO dto)
+        {
+            if (await _categoryRepository.GetUserDataByIdAsync(dto.CategoryId) == null)
+                return "Category not found";
+            return null;
+        }
     }
 }
