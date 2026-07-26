@@ -5,6 +5,7 @@ using ExpenseTracker.Domain.Interfaces;
 using ExpenseTracker.Infrastructure.Security;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
 using System.ComponentModel.DataAnnotations;
 using System.IdentityModel.Tokens.Jwt;
@@ -20,18 +21,23 @@ namespace ExpenseTracker.API.Controllers
     public class UserController : ControllerBase
     {
         private readonly UserManager<User> _userManager;
+        private readonly SignInManager<User> _signInManager;
         private readonly IConfiguration _configuration;
         private readonly IRefreshTokenRepository _refreshTokenRepository;
+        private readonly ILogger<UserController> _logger;
 
-        public UserController(UserManager<User> userManager, IConfiguration configuration, IRefreshTokenRepository refreshTokenRepository)
+        public UserController(UserManager<User> userManager, SignInManager<User> signInManager, IConfiguration configuration, IRefreshTokenRepository refreshTokenRepository, ILogger<UserController> logger)
         {
             _userManager = userManager;
+            _signInManager = signInManager;
             _configuration = configuration;
             _refreshTokenRepository = refreshTokenRepository;
+            _logger = logger;
         }
 
         #region API calls
         [HttpPost("signup")]
+        [EnableRateLimiting("auth")]
         public async Task<IActionResult> SignUp([FromBody] RegisterDto model)
         {
             var user = new User { FirstName = model.FirstName, LastName = model.LastName, UserName = model.FirstName + model.LastName, Email = model.Email };
@@ -67,11 +73,23 @@ namespace ExpenseTracker.API.Controllers
         }
 
         [HttpPost("login")]
+        [EnableRateLimiting("auth")]
         public async Task<IActionResult> Login([FromBody] LoginDto model)
         {
             var user = await _userManager.FindByEmailAsync(model.Email);
-            if (user == null || !await _userManager.CheckPasswordAsync(user, model.Password))
+            if (user == null)
                 return Unauthorized("Invalid credentials");
+
+            // Records failed attempts and honors LockoutEnd; resets the counter on success.
+            var passwordCheck = await _signInManager.CheckPasswordSignInAsync(user, model.Password, lockoutOnFailure: true);
+            if (!passwordCheck.Succeeded)
+            {
+                // Lockout state stays server-side only — the response must not differ from a wrong password.
+                if (passwordCheck.IsLockedOut)
+                    _logger.LogWarning("Login attempt for locked-out user {UserId}", user.Id);
+
+                return Unauthorized("Invalid credentials");
+            }
 
             // JWT
             var token = GenerateJwtToken(user);
@@ -103,6 +121,7 @@ namespace ExpenseTracker.API.Controllers
         }
 
         [HttpPost("refresh")]
+        [EnableRateLimiting("auth")]
         public async Task<IActionResult> Refresh()
         {
             // Get raw refresh token from HttpOnly cookie
