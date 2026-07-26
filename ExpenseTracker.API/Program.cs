@@ -1,4 +1,5 @@
 ﻿using ExpenseTracker.API.Extensions;
+using ExpenseTracker.API.Middleware;
 using ExpenseTracker.Application.DependencyInjection;
 using ExpenseTracker.Infrastructure.DependencyInjections;
 using ExpenseTracker.Infrastructure.Persistence;
@@ -27,12 +28,15 @@ builder.Services.AddApplicationServices();
 builder.Services.AddCustomSwagger();
 //Cors configuration
 builder.Services.AddReactCors(builder.Configuration);
+//Global exception -> ProblemDetails mapping (400/404/409/500)
+builder.Services.AddProblemDetails();
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 #endregion
 
 var app = builder.Build();
 
 app.UseCustomSwagger(app.Environment.IsDevelopment());
-app.UseExceptionHandler("/error");
+app.UseExceptionHandler();
 
 // Development only: Railway terminates TLS at its proxy and forwards plain http, so
 // redirecting in production would bounce every request into a loop.
