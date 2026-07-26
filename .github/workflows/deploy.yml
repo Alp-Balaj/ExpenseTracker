@@ -43,6 +43,7 @@ jobs:
       - name: Verify READ_FRONTEND_REPO is present
         env:
           TOK: ${{ secrets.READ_FRONTEND_REPO }}
+          TARGET: ${{ github.repository_owner }}/expense-tracker-front
         run: |
           if [ -z "$TOK" ]; then
             echo "::error::READ_FRONTEND_REPO is unset or empty on Alp-Balaj/ExpenseTracker."
@@ -50,6 +51,19 @@ jobs:
             exit 1
           fi
           echo "READ_FRONTEND_REPO present (${#TOK} chars)"
+
+          # Probe the API before git tries. git only ever reports a generic 403, which does
+          # not distinguish "token can't see this repo" from "token sees it but lacks
+          # Contents". The status code here does. Only the code is printed, never the token.
+          code=$(curl -s -o /dev/null -w '%{http_code}' \
+            -H "Authorization: Bearer $TOK" "https://api.github.com/repos/$TARGET")
+          echo "GET /repos/$TARGET -> $code"
+          case "$code" in
+            200) echo "Token can see $TARGET." ;;
+            404) echo "::error::Token is valid but cannot see $TARGET — its 'Repository access' does not include that repo. This is the WRONG token of the pair, or the repo was never selected when the PAT was created."; exit 1 ;;
+            401) echo "::error::Token is expired, revoked, or malformed."; exit 1 ;;
+            *)   echo "::error::Unexpected status $code probing $TARGET."; exit 1 ;;
+          esac
 
       # READ_FRONTEND_REPO: a PAT that can READ the expense-tracker-front repo. It is stored
       # here (on the backend repo) because this is where the workflow runs, but it is scoped
