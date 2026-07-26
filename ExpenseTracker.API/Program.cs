@@ -33,9 +33,14 @@ builder.Services.AddReactCors(builder.Configuration);
 //Global exception -> ProblemDetails mapping (400/404/409/500)
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
-//Rate limiting for the auth endpoints (login/signup/refresh): 10 requests/min per client IP.
-//Behind the Railway proxy RemoteIpAddress is the proxy's, so the limit is effectively shared
-//there; per-account brute force is still stopped by Identity lockout.
+//Rate limiting for the auth endpoints (login/signup/refresh): 10 requests/min per client IP
+//by default. Behind the Railway proxy RemoteIpAddress is the proxy's, so the limit is
+//effectively shared there; per-account brute force is still stopped by Identity lockout.
+//Configurable (not just hardcoded) so ExpenseTracker.Tests can raise the ceiling -- every
+//WebApplicationFactory test runs from the same loopback IP, and signup+login per test would
+//otherwise trip the limit within seconds.
+var authRateLimitPermits = builder.Configuration.GetValue<int?>("RateLimiting:Auth:PermitLimit") ?? 10;
+var authRateLimitWindow = TimeSpan.FromSeconds(builder.Configuration.GetValue<int?>("RateLimiting:Auth:WindowSeconds") ?? 60);
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -44,8 +49,8 @@ builder.Services.AddRateLimiter(options =>
             partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
             factory: _ => new FixedWindowRateLimiterOptions
             {
-                PermitLimit = 10,
-                Window = TimeSpan.FromMinutes(1),
+                PermitLimit = authRateLimitPermits,
+                Window = authRateLimitWindow,
                 QueueLimit = 0
             }));
 });
@@ -112,3 +117,7 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.Run();
+
+// Exposes the top-level-statement entry point so WebApplicationFactory<Program>
+// in ExpenseTracker.Tests can boot this app in-process.
+public partial class Program { }
