@@ -1,10 +1,12 @@
 ﻿using DnsClient.Protocol;
+using ExpenseTracker.Application.Validation;
 using ExpenseTracker.Domain.Entities.User;
 using ExpenseTracker.Domain.Interfaces;
 using ExpenseTracker.Infrastructure.Security;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
+using System.ComponentModel.DataAnnotations;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
@@ -254,7 +256,13 @@ namespace ExpenseTracker.API.Controllers
         #endregion
     }
 
-    public record RegisterDto(string FirstName, string LastName, string Email, string Password);
-    public record LoginDto(string Email, string Password);
+    public record RegisterDto(
+        [Required, NotWhitespace, MaxLength(50)] string FirstName,
+        [Required, NotWhitespace, MaxLength(50)] string LastName,
+        [Required, EmailAddress] string Email,
+        [Required] string Password);
+    public record LoginDto(
+        [Required, EmailAddress] string Email,
+        [Required] string Password);
 }
     

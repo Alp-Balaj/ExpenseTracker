@@ -34,9 +34,6 @@ namespace ExpenseTracker.API.Controllers
 
             var entity = ToEntity(dto);
 
-            if (AmountOf(entity) <= 0)
-                return BadRequest("Amount must be greater than zero.");
-
             await using var transaction = await _unitOfWork.BeginTransactionAsync();
 
             var (Success, ErrorMessage) = await _accountServices.AdjustAccountBalance(BalanceSign * AmountOf(entity), AccountIdOf(entity));
@@ -68,9 +65,6 @@ namespace ExpenseTracker.API.Controllers
 
             var newAmount = AmountOf(entity);
             var newAccountId = AccountIdOf(entity);
-
-            if (newAmount <= 0)
-                return BadRequest("Amount must be greater than zero.");
 
             await using var transaction = await _unitOfWork.BeginTransactionAsync();
 

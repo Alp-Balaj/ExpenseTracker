@@ -51,9 +51,6 @@ namespace ExpenseTracker.API.Controllers
 
         private async Task<IActionResult> CreateGuarded(SavingContribution entity)
         {
-            if (entity.Amount <= 0)
-                return BadRequest("Amount must be greater than zero.");
-
             await using var transaction = await _unitOfWork.BeginTransactionAsync();
 
             var (Success, ErrorMessage) = await _savingGoalServices.UpdateSavingGoalAmount(entity.GoalId, entity.Amount);
@@ -79,9 +76,6 @@ namespace ExpenseTracker.API.Controllers
             var oldGoalId = entity.GoalId;
 
             ApplyUpdates(entity, dto);
-
-            if (entity.Amount <= 0)
-                return BadRequest("Amount must be greater than zero.");
 
             await using var transaction = await _unitOfWork.BeginTransactionAsync();
 
