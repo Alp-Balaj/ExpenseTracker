@@ -16,6 +16,11 @@ namespace ExpenseTracker.Application.DTOs
         [Required, NotWhitespace, MaxLength(5)]
         public required string Symbol { get; set; }
 
+        /// <summary>
+        /// Multiplier that converts one unit of THIS currency into the user's base
+        /// currency: <c>amountInBase = amount * ExchangeRateToBase</c>. The base
+        /// currency itself should have rate 1. Manually maintained via Currency CRUD.
+        /// </summary>
         [Range(0.000001, double.MaxValue, ErrorMessage = "ExchangeRateToBase must be greater than zero.")]
         public decimal ExchangeRateToBase { get; set; }
     }

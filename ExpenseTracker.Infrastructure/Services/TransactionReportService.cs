@@ -1,4 +1,5 @@
-﻿using ExpenseTracker.Application.DTOs.Reports;
+﻿using ExpenseTracker.Application.DTOs;
+using ExpenseTracker.Application.DTOs.Reports;
 using ExpenseTracker.Application.Interfaces;
 using ExpenseTracker.Domain.Interfaces;
 using ExpenseTracker.Shared.Enums;
@@ -9,9 +10,11 @@ namespace ExpenseTracker.Infrastructure.Services
     public sealed class TransactionReportService : ITransactionReportService
     {
         private readonly IUnitOfWork _uow;
-        public TransactionReportService(IUnitOfWork uow)
+        private readonly ICurrencyConversionService _conversion;
+        public TransactionReportService(IUnitOfWork uow, ICurrencyConversionService conversion)
         {
             _uow = uow;
+            _conversion = conversion;
         }
         public async Task<TransactionReportResult> GenerateAsync(TransactionReportRequest request)
         {
@@ -78,10 +81,18 @@ namespace ExpenseTracker.Infrastructure.Services
 
             rows = rows.OrderBy(r => r.Date).ToList();
 
+            var converter = await _conversion.GetConverterAsync();
+            var breakdown = converter.Summarize(
+                rows.Select(r => new CurrencyAmount(r.Currency, r.Amount)));
+
             return new TransactionReportResult
             {
                 Rows = rows,
-                Total = rows.Sum(r => r.Amount)
+                Total = rows.Sum(r => r.Amount),
+                Subtotals = breakdown.Subtotals,
+                BaseCurrency = breakdown.BaseCurrency,
+                ConvertedTotal = breakdown.ConvertedTotal,
+                HasMissingRates = breakdown.HasMissingRates
             };
         }
 

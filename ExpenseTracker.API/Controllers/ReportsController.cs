@@ -2,6 +2,7 @@
 using ExpenseTracker.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Globalization;
 using System.Text;
 
 namespace ExpenseTracker.API.Controllers;
@@ -32,6 +33,10 @@ public sealed class ReportsController : ControllerBase
 
         static string Csv(string s)
         {
+            // Spreadsheet formula injection: neutralize leading =, +, -, @.
+            if (s.Length > 0 && s[0] is '=' or '+' or '-' or '@')
+                s = "'" + s;
+
             if (s.Contains('"') || s.Contains(',') || s.Contains('\n') || s.Contains('\r'))
                 return $"\"{s.Replace("\"", "\"\"")}\"";
             return s;
@@ -42,7 +47,13 @@ public sealed class ReportsController : ControllerBase
 
         foreach (var r in result.Rows)
         {
-            sb.AppendLine($"{r.Date:yyyy-MM-dd},{r.Kind},{Csv(r.Category)},{Csv(r.Account)},{r.Amount},{r.Currency}");
+            sb.AppendLine(string.Join(',',
+                r.Date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                r.Kind.ToString(),
+                Csv(r.Category),
+                Csv(r.Account),
+                r.Amount.ToString(CultureInfo.InvariantCulture),
+                Csv(r.Currency)));
         }
 
         return File(Encoding.UTF8.GetBytes(sb.ToString()), "text/csv", "transaction-report.csv");

@@ -135,6 +135,23 @@ And run the app, After startup, Swagger is available in Development at `https://
 
 This design prevents token theft and ensures long-lived sessions without exposing anything.
 
+## Currencies & conversion
+
+Each user maintains their own currencies (Currency CRUD) and picks a base currency in
+user preferences (`BaseCurrency`, default `EUR`). `Currency.ExchangeRateToBase` is a
+manually maintained multiplier whose direction is fixed everywhere in the codebase:
+
+```
+amountInBase = amount * ExchangeRateToBase
+```
+
+i.e. the rate converts one unit of *that* currency into the user's base currency; the
+base currency itself should have rate 1. Reports and category summaries return
+per-currency `subtotals` plus a `convertedTotal` in the base currency; when the base
+currency is unset or any involved currency has no usable rate, `convertedTotal` is
+`null` and `hasMissingRates` is `true` — clients must show subtotals instead of a
+single number in that case.
+
 ## Swagger
 
 Swagger is registered via 
