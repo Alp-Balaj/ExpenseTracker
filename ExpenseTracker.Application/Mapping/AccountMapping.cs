@@ -14,7 +14,8 @@ namespace ExpenseTracker.Application.Mapping
                 AmountType = (int)account.AmountType,
                 Balance = account.Balance,
                 CurrencyId = account.CurrencyId,
-                CurrencyCode = account.Currency.Code,
+                CurrencyCode = account.Currency?.Code
+                    ?? throw new InvalidOperationException("Currency navigation not loaded on Account"),
                 Description = account.Description,
             };
         }

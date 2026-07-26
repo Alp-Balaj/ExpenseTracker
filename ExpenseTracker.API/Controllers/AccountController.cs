@@ -32,5 +32,26 @@ namespace ExpenseTracker.API.Controllers
 
             return Ok(dtos);
         }
+
+        [HttpGet("{id:guid}")]
+        public override async Task<IActionResult> Get(Guid id)
+        {
+            var entity = await _accountRepository.GetUserDataWithCurrencyByIdAsync(id);
+            if (entity == null) return NotFound();
+            return Ok(ToDto(entity));
+        }
+
+        [HttpPost]
+        public override async Task<IActionResult> Create([FromBody] AccountDTO dto)
+        {
+            var entity = ToEntity(dto);
+            await _repository.AddAsync(entity);
+            await _unitOfWork.SaveAsync();
+
+            // Re-query so the Currency navigation is loaded for the response DTO;
+            // EF returns the tracked instance with the navigation fixed up.
+            var saved = await _accountRepository.GetUserDataWithCurrencyByIdAsync(entity.Id) ?? entity;
+            return CreatedAtAction(nameof(Get), new { id = entity.Id }, ToDto(saved));
+        }
     }
 }

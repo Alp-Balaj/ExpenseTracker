@@ -29,6 +29,14 @@ namespace ExpenseTracker.Infrastructure.Repositories
                 .ToListAsync();
         }
 
+        public async Task<Account?> GetUserDataWithCurrencyByIdAsync(Guid id)
+        {
+            return await _dbSet
+                .Where(e => e.UserId == _UserId)
+                .Include(e => e.Currency)
+                .FirstOrDefaultAsync(e => e.Id == id);
+        }
+
         public async Task<bool> AdjustBalanceAsync(Guid accountId, decimal delta)
         {
             var affected = await _dbSet

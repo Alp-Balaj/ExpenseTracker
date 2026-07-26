@@ -33,7 +33,7 @@ namespace ExpenseTracker.API.Controllers
         }
 
         [HttpGet("{id:guid}")]
-        public async Task<IActionResult> Get(Guid id)
+        public virtual async Task<IActionResult> Get(Guid id)
         {
             var entity = await _repository.GetUserDataByIdAsync(id);
             if (entity == null) return NotFound();
