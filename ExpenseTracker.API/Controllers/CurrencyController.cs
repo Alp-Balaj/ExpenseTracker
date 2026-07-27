@@ -1,4 +1,5 @@
 ﻿using ExpenseTracker.Application.DTOs;
+using ExpenseTracker.Application.Interfaces;
 using ExpenseTracker.Application.Mapping;
 using ExpenseTracker.Domain.Entities;
 using ExpenseTracker.Domain.Interfaces;
@@ -12,8 +13,17 @@ namespace ExpenseTracker.API.Controllers
     [Route("api/[controller]")]
     public class CurrencyController : BaseController<Currency, CurrencyDTO>
     {
-        public CurrencyController(IUnitOfWork uow, IUserRelatedRepository<Currency> repo)
-            : base(uow, repo) { }
+        private readonly IExchangeRateUpdater _rateUpdater;
+
+        public CurrencyController(
+            IUnitOfWork uow,
+            IUserRelatedRepository<Currency> repo,
+            IExchangeRateUpdater rateUpdater)
+            : base(uow, repo)
+        {
+            _rateUpdater = rateUpdater;
+        }
+
         protected override CurrencyDTO ToDto(Currency entity) => entity.ToDto();
         protected override Currency ToEntity(CurrencyDTO dto) => dto.ToEntity();
         protected override void ApplyUpdates(Currency entity, CurrencyDTO dto) => entity.Apply(dto);
@@ -25,6 +35,31 @@ namespace ExpenseTracker.API.Controllers
             var entities = await _repository.GetAllUserDataAsync();
             var dtos = entities.Select(ToDropdownDto).ToList();
             return Ok(dtos);
+        }
+
+        /// <summary>
+        /// Refreshes this user's exchange rates from the upstream immediately, instead of
+        /// waiting for the daily sweep. Always 200: an unreachable upstream is a normal
+        /// outcome that leaves every stored rate untouched, and the response says so via
+        /// <c>providerUnavailable</c> rather than by failing.
+        /// </summary>
+        [HttpPost("RefreshRates")]
+        public async Task<IActionResult> RefreshRates(CancellationToken cancellationToken)
+        {
+            var userId = _repository.GetCurrentUserId();
+            var result = await _rateUpdater.UpdateUserAsync(userId, cancellationToken);
+
+            var currencies = await _repository.GetAllUserDataAsync();
+
+            return Ok(new
+            {
+                result.BaseCurrency,
+                RatesAsOf = result.RatesAsOf?.ToString("yyyy-MM-dd"),
+                result.UpdatedCount,
+                result.UnsupportedCodes,
+                result.ProviderUnavailable,
+                Currencies = currencies.Select(ToDto).ToList()
+            });
         }
     }
 

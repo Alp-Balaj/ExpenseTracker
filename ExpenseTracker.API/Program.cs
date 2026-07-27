@@ -1,5 +1,6 @@
 ﻿using ExpenseTracker.API.Extensions;
 using ExpenseTracker.API.Middleware;
+using ExpenseTracker.API.Services;
 using ExpenseTracker.Application.DependencyInjection;
 using ExpenseTracker.Infrastructure.DependencyInjections;
 using ExpenseTracker.Infrastructure.Persistence;
@@ -30,6 +31,10 @@ builder.Services.AddApplicationServices();
 builder.Services.AddCustomSwagger();
 //Cors configuration
 builder.Services.AddReactCors(builder.Configuration);
+//Sugg-8: refreshes every user's exchange rates on startup and daily thereafter.
+//Self-disables when ExchangeRates:Enabled is false (the test suite sets that), so it
+//is registered unconditionally and decides for itself whether to do any work.
+builder.Services.AddHostedService<ExchangeRateRefreshService>();
 //Global exception -> ProblemDetails mapping (400/404/409/500)
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
