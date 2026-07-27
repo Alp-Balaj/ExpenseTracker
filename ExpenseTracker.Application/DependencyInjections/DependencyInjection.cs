@@ -10,6 +10,7 @@ namespace ExpenseTracker.Application.DependencyInjection
         public static IServiceCollection AddApplicationServices(this IServiceCollection services)
         {
 
+            services.AddScoped<IBudgetService, BudgetService>();
             services.AddScoped<ICategoryService, CategoryService>();
             services.AddScoped<ICurrencyConversionService, CurrencyConversionService>();
             services.AddScoped<IAccountServices, AccountServices>();
