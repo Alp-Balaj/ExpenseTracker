@@ -23,6 +23,7 @@ namespace ExpenseTracker.Infrastructure.Persistence
         public DbSet<SavingGoal> SavingGoals { get; set; }
         public DbSet<SavingContribution> SavingContributions { get; set; }
         public DbSet<RefreshToken> RefreshTokens { get; set; }
+        public DbSet<UserPreferences> UserPreferences { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

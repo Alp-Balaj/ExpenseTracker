@@ -33,11 +33,7 @@ public sealed class CustomWebApplicationFactory : WebApplicationFactory<Program>
         await _postgres.StartAsync();
 
         Environment.SetEnvironmentVariable("DOTNET_ENVIRONMENT", "Testing");
-        Environment.SetEnvironmentVariable("DatabaseProvider", "PostgreSQL");
         Environment.SetEnvironmentVariable("ConnectionStrings__PostgreSQL", _postgres.GetConnectionString());
-        // Present (not unset) so MongoDbContext's MongoClientSettings.FromConnectionString
-        // parses instead of throwing; nothing under test exercises the Mongo path.
-        Environment.SetEnvironmentVariable("ConnectionStrings__MongoDbConnection", "mongodb://localhost:27017");
         // 32+ byte HMAC key required by JWTServices at startup.
         Environment.SetEnvironmentVariable("Jwt__Key", "test-only-signing-key-at-least-32-bytes-long!!");
         Environment.SetEnvironmentVariable("Jwt__Issuer", "https://tests.local");

@@ -13,10 +13,8 @@ services:
       - "8080:8080"
     environment:
       ASPNETCORE_ENVIRONMENT: Production
-      DatabaseProvider: PostgreSQL
       ConnectionStrings__PostgreSQL: "Host=db;Port=5432;Database=ExpenseTracker;Username=postgres;Password=rehearsal"
       # Secrets stay out of this tracked file — compose reads them from .env (see .env.example).
-      ConnectionStrings__MongoDbConnection: "${MONGO_CONNECTION:?set MONGO_CONNECTION in .env}"
       Jwt__Key: "${JWT_KEY:?set JWT_KEY in .env — must be >= 32 bytes}"
       Jwt__Issuer: "ExpenseTracker"
       Jwt__Audience: "ExpenseTrackerUsers"

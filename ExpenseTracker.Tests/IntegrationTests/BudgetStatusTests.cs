@@ -13,9 +13,10 @@ namespace ExpenseTracker.Tests.IntegrationTests;
 // second budget for the same one.
 //
 // Assertions read `subtotals` (raw per-currency spend) rather than `spent`,
-// because `spent` is expressed in the user's base currency, which comes from
-// the Mongo-backed preferences store — unavailable in this suite, so the
-// converter degrades to subtotals-only by design (see CurrencyConversionService).
+// because `spent` is expressed in the user's base currency and is null whenever
+// a rate is missing (see CurrencyConversionService). Since Sugg-10 the
+// preferences row lives in this suite's own Postgres container, and a user who
+// has never saved preferences reads back the "EUR" default.
 [Collection(IntegrationTestCollection.Name)]
 public sealed class BudgetStatusTests
 {

@@ -9,7 +9,7 @@ The API is designed to be consumed by a React frontend and exposes interactive d
 - Target framework: .NET 8, C# 12
 - Architecture: Layered (API / Application / Domain / Infrastructure)
 - Authentication: ASP.NET Core Identity with JWT access tokens and secure refresh tokens ([Read more](#authentication--refresh-tokens))
-- Persistence: Entity Framework Core (PostgreSQL by default; SQL Server also supported)
+- Persistence: Entity Framework Core on PostgreSQL (the only provider — see [Persistence](#persistence))
 - Migrations: `ExpenseTracker.Infrastructure/Migrations`
 - API docs: Swagger UI enabled in Development via `AddCustomSwagger()` / `UseCustomSwagger(...)`  
 - CORS:Dedicated policy for React frontend (`ReactCors`)
@@ -46,7 +46,23 @@ ExpenseTracker/
 ## Prerequisites
 
 - .NET 8 SDK
-- PostgreSQL (SQL Server also supported via the SQL Server migrations/provider)
+- PostgreSQL
+
+## Persistence
+
+Everything the app stores lives in **one PostgreSQL database**, reached through
+`ApplicationDbContext` (`PostgresContext`). There is no provider switch and no second store.
+
+Two earlier stores were removed in Suggestion-10:
+
+- **SQL Server** was selectable via a `DatabaseProvider` config key, but its migration set had been
+  stale since January 2026 (it never got the SavingGoals, DateOnly or Budgets migrations), so
+  flipping the switch produced a broken schema. The provider, its context/factory, its migrations
+  and the `Microsoft.EntityFrameworkCore.SqlServer` package references are gone; `DatabaseProvider`
+  is no longer read and can be dropped from any environment that still sets it.
+- **MongoDB Atlas** held a single two-field document per user (`UserPreferences`). It is now an
+  ordinary Postgres table keyed by `UserId` (migration `20260727162418_UserPreferences`), so
+  `MongoDB.Driver` and its BSON attributes are out of the Domain project entirely.
 
 ## Configuration
 
@@ -54,8 +70,7 @@ Primary configuration lives in `ExpenseTracker.API/appsettings.json`, but the se
 blank in every tracked file — they're supplied via user-secrets (dev) or environment variables
 (docker/production). Important keys:
 
-- `ConnectionStrings:PostgreSQL` — Npgsql connection string (active provider)
-- `ConnectionStrings:MongoDbConnection` — MongoDB Atlas connection string (UserPreferences only)
+- `ConnectionStrings:PostgreSQL` — Npgsql connection string (the only database)
 - `Jwt:Key` — Signing key, **must be ≥ 32 bytes** — the app throws at startup otherwise
 - `Jwt:Issuer`, `Jwt:Audience` — Token issuer and audience
 - `RefreshToken:Pepper` (optional) — Server-side pepper for refresh token hashing
@@ -69,7 +84,6 @@ those files are tracked in git. Instead:
 **Development (`ExpenseTracker.API`, has `UserSecretsId` already configured):**
 ```bash
 dotnet user-secrets set "ConnectionStrings:PostgreSQL" "Host=localhost;Port=5432;Database=ExpenseTracker;Username=alp;Password=<...>;"
-dotnet user-secrets set "ConnectionStrings:MongoDbConnection" "mongodb+srv://<user>:<pass>@expensetrackercluster.d9r0itm.mongodb.net/?appName=ExpenseTrackerCluster"
 dotnet user-secrets set "Jwt:Key" "<openssl rand -base64 48>"
 dotnet user-secrets set "RefreshToken:Pepper" "<openssl rand -base64 48>"
 ```

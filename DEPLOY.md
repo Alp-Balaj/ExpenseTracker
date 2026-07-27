@@ -1,8 +1,8 @@
 # Deploying ExpenseTracker (Railway, single origin)
 
 One deployed app: the API container serves the built SPA from `wwwroot`, the controllers
-already live under `/api/*` so the SPA calls them same-origin, the relational database is
-Railway Postgres, and user preferences stay in MongoDB Atlas. The image is built by
+already live under `/api/*` so the SPA calls them same-origin, and Railway Postgres is the
+only database — user preferences moved into it in Suggestion-10. The image is built by
 `.github/workflows/deploy.yml` from **both** repos and pushed to GHCR; Railway redeploys
 from `ghcr.io/<owner>/expensetracker:latest`.
 
@@ -14,7 +14,6 @@ expense-tracker-front push (master) ──repository_dispatch──▶ deploy.ym
                                                                  │ railway redeploy
                                                                  ▼
                           Browser ──▶ Railway service ──▶ Railway Postgres (migrated at startup)
-                                            └───────────▶ MongoDB Atlas (UserPreferences)
 ```
 
 Single origin is what makes the auth cookie work without ceremony: `refresh_token` is set
@@ -66,13 +65,12 @@ printf '%s' "$TOKEN" | gh secret set READ_FRONTEND_REPO --repo Alp-Balaj/Expense
 unset TOKEN
 ```
 
-### MongoDB Atlas
+### MongoDB Atlas — no longer used
 
-The existing cluster is fine. Add Railway's egress to the Atlas IP access list — Railway
-does not publish static egress IPs on the trial/hobby plans, so in practice this means
-`0.0.0.0/0` plus a strong database user, or a dedicated egress add-on. The tracked
-appsettings files no longer carry the credential, but the old one is still in git history —
-rotate it before going live.
+Suggestion-10 moved `UserPreferences` into Postgres and deleted the Mongo client, connection
+string and driver packages. Nothing in the app connects to Atlas any more, so **delete the
+cluster (or at minimum its database user)** — that also retires the credential that leaked into
+git history, which is the cleanest available fix for it.
 
 ### Railway
 
@@ -91,9 +89,7 @@ rotate it before going live.
 
 | Variable | Value |
 |---|---|
-| `DatabaseProvider` | `PostgreSQL` |
 | `ConnectionStrings__PostgreSQL` | `Host=${{Postgres.PGHOST}};Port=${{Postgres.PGPORT}};Database=${{Postgres.PGDATABASE}};Username=${{Postgres.PGUSER}};Password=${{Postgres.PGPASSWORD}};SSL Mode=Require` — keyword form via Railway reference variables. (`DependencyInjection.cs` also accepts a `postgresql://` URL and converts it, but that path drops the SSL setting.) |
-| `ConnectionStrings__MongoDbConnection` | the Atlas `mongodb+srv://…` string |
 | `Jwt__Key` | fresh random (e.g. `openssl rand -base64 48`) — never the dev key. `AddAuthServices` throws at startup if this is missing or under 32 bytes, so a bad value fails the healthcheck rather than shipping. |
 | `Jwt__Issuer` | e.g. `https://<service>.up.railway.app` (validated, so it only has to match what the API itself issues) |
 | `Jwt__Audience` | e.g. `https://<service>.up.railway.app` |
@@ -119,9 +115,7 @@ docker run -d --name expensetracker-pg -e POSTGRES_PASSWORD=rehearsal \
 
 docker run --rm --network host \
   -e ASPNETCORE_ENVIRONMENT=Production \
-  -e DatabaseProvider=PostgreSQL \
   -e ConnectionStrings__PostgreSQL="Host=localhost;Port=5433;Database=ExpenseTracker;Username=postgres;Password=rehearsal" \
-  -e ConnectionStrings__MongoDbConnection="<atlas connection string>" \
   -e Jwt__Key="rehearsal-only-signing-key-0123456789abcdef-0123456789abcdef" \
   -e Jwt__Issuer="ExpenseTracker" -e Jwt__Audience="ExpenseTrackerUsers" \
   -e RefreshToken__Pepper="rehearsal-only-pepper" \
@@ -129,7 +123,7 @@ docker run --rm --network host \
 ```
 
 `docker compose up --build` from `ExpenseTracker/` does the same with the Postgres
-container wired in (set `MONGO_CONNECTION` in the shell first).
+container wired in.
 
 Click-through on `http://localhost:8080` — **no Vite dev server running**:
 
@@ -141,7 +135,7 @@ Click-through on `http://localhost:8080` — **no Vite dev server running**:
 - [ ] accounts / expenses / income / categories CRUD
 - [ ] dashboard charts and reports render
 - [ ] currency conversion
-- [ ] user preferences round-trip (this is the MongoDB path)
+- [ ] user preferences round-trip (theme + base currency, now a Postgres table)
 - [ ] deep-link refresh on a client route (e.g. `/dashboard`) serves the SPA rather than 404
 - [ ] `/health` returns 200 without a token
 - [ ] migrations applied cleanly to the fresh, empty DB (check the startup logs)
@@ -165,6 +159,6 @@ Until the Railway service is up, the app is not hosted anywhere.
   that starts to hurt.
 - No test projects in the solution, so CI only restores and builds.
 - Secrets are out of the tracked appsettings files (user-secrets in dev, env vars in
-  production), but the previously committed Mongo Atlas credential remains in git history
-  and still needs rotating.
+  production). The previously committed Mongo Atlas credential is still in git history, but
+  the app no longer uses Atlas at all — deleting the cluster/user retires it for good.
 - No custom domain/CDN in front of Railway.

@@ -13,34 +13,22 @@ public static class DependencyInjection
 {
         public static IServiceCollection AddInfrastructureServices(this IServiceCollection services, IConfiguration configuration)
     {
-        var dbProvider = configuration["DatabaseProvider"];
+        // Postgres is the only provider (Sugg-10 dropped the SQL Server one, whose
+        // migration set had been stale since January, and the Mongo store that held
+        // nothing but UserPreferences).
+        var connectionString = configuration.GetConnectionString("PostgreSQL");
 
-        if (dbProvider == "SQLServer")
+        if (!string.IsNullOrEmpty(connectionString) && connectionString.StartsWith("postgresql://"))
         {
-            services.AddDbContext<ApplicationDbContext, SQLServerContext>(options =>
-                options.UseSqlServer(configuration.GetConnectionString("SQLServer")));
-        }
-        else if (dbProvider == "PostgreSQL")
-        {
-            var connectionString = configuration.GetConnectionString("PostgreSQL");
-
-            if (!string.IsNullOrEmpty(connectionString) && connectionString.StartsWith("postgresql://"))
-            {
-                var uri = new Uri(connectionString);
-                connectionString = $"Host={uri.Host};Port={uri.Port};Database={uri.AbsolutePath.TrimStart('/')};Username={uri.UserInfo.Split(':')[0]};Password={uri.UserInfo.Split(':')[1]}";
-            }
-
-            services.AddDbContext<ApplicationDbContext, PostgresContext>(options =>
-                options.UseNpgsql(connectionString, npgsqlOptions =>
-                    npgsqlOptions.MigrationsAssembly("ExpenseTracker.Infrastructure")
-                ));
-        }
-        else
-        {
-            throw new Exception($"Couldn't find dbProvider: {dbProvider}");
+            var uri = new Uri(connectionString);
+            connectionString = $"Host={uri.Host};Port={uri.Port};Database={uri.AbsolutePath.TrimStart('/')};Username={uri.UserInfo.Split(':')[0]};Password={uri.UserInfo.Split(':')[1]}";
         }
 
-        services.AddSingleton<MongoDbContext>();
+        services.AddDbContext<ApplicationDbContext, PostgresContext>(options =>
+            options.UseNpgsql(connectionString, npgsqlOptions =>
+                npgsqlOptions.MigrationsAssembly("ExpenseTracker.Infrastructure")
+            ));
+
         services.AddHttpContextAccessor();
         services.AddScoped<ICurrentUserServices, CurrentUserServices>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
