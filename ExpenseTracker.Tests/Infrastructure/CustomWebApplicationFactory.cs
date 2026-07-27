@@ -1,5 +1,9 @@
+using ExpenseTracker.Application.Interfaces;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Testcontainers.PostgreSql;
 using Xunit;
 
@@ -44,7 +48,17 @@ public sealed class CustomWebApplicationFactory : WebApplicationFactory<Program>
         // the production default (10/min) would throttle the suite itself (Fix-13).
         Environment.SetEnvironmentVariable("RateLimiting__Auth__PermitLimit", "100000");
         Environment.SetEnvironmentVariable("RateLimiting__Auth__WindowSeconds", "60");
+        // Sugg-8: keep the daily rate sweep from starting under test. The manual
+        // refresh endpoint is unaffected and is what the rate tests drive, through
+        // the stub provider registered below — no test may depend on the network.
+        Environment.SetEnvironmentVariable("ExchangeRates__Enabled", "false");
     }
+
+    /// <summary>
+    /// The fake upstream behind /api/Currency/RefreshRates. Mutate its
+    /// <see cref="StubExchangeRateProvider.Snapshots"/> to model what the ECB publishes.
+    /// </summary>
+    public StubExchangeRateProvider RateProvider { get; } = new();
 
     async Task IAsyncLifetime.DisposeAsync()
     {
@@ -57,5 +71,13 @@ public sealed class CustomWebApplicationFactory : WebApplicationFactory<Program>
         // Belt and suspenders: skip Development-only user secrets even if the
         // DOTNET_ENVIRONMENT env var above were ever bypassed.
         builder.UseEnvironment("Testing");
+
+        builder.ConfigureTestServices(services =>
+        {
+            // Swap the real HTTP provider for a deterministic one. ConfigureTestServices
+            // runs after the app's own registrations, so this wins.
+            services.RemoveAll<IExchangeRateProvider>();
+            services.AddSingleton<IExchangeRateProvider>(RateProvider);
+        });
     }
 }
