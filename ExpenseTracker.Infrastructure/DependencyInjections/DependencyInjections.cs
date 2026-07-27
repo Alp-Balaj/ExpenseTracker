@@ -1,4 +1,5 @@
 ﻿using ExpenseTracker.Application.Interfaces;
+using ExpenseTracker.Application.Options;
 using ExpenseTracker.Domain.Interfaces;
 using ExpenseTracker.Infrastructure.Persistence;
 using ExpenseTracker.Infrastructure.Repositories;
@@ -6,6 +7,7 @@ using ExpenseTracker.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace ExpenseTracker.Infrastructure.DependencyInjections;
 
@@ -37,6 +39,20 @@ public static class DependencyInjection
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
         services.AddScoped<ITransactionReportService, TransactionReportService>();
         services.AddScoped<IUserPreferencesService, UserPreferencesService>();
+
+        // Sugg-8: daily exchange rate refresh. frankfurter.app needs no API key, so
+        // there is nothing here to keep out of source control.
+        services.Configure<ExchangeRateOptions>(configuration.GetSection(ExchangeRateOptions.SectionName));
+        services.AddHttpClient(FrankfurterExchangeRateProvider.HttpClientName, (sp, client) =>
+        {
+            var options = sp.GetRequiredService<IOptions<ExchangeRateOptions>>().Value;
+            client.BaseAddress = new Uri(options.BaseUrl);
+            // A hung upstream must not pin a background scope open for the default
+            // 100 seconds; the provider treats the timeout as "keep existing rates".
+            client.Timeout = options.Timeout;
+        });
+        services.AddScoped<IExchangeRateProvider, FrankfurterExchangeRateProvider>();
+        services.AddScoped<IExchangeRateUpdater, ExchangeRateUpdater>();
 
         return services;
     }
