@@ -14,6 +14,7 @@ namespace ExpenseTracker.Infrastructure.Persistence
         }
 
         public DbSet<Account> Accounts { get; set; }
+        public DbSet<Budget> Budgets { get; set; }
         public DbSet<Category> Categories { get; set; }
         public DbSet<Currency> Currencies { get; set; }
         public DbSet<Expense> Expenses { get; set; }

@@ -64,6 +64,46 @@ namespace ExpenseTracker.Infrastructure.Migrations.Postgres
                     b.ToTable("Accounts");
                 });
 
+            modelBuilder.Entity("ExpenseTracker.Domain.Entities.Budget", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<Guid?>("CategoryId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<int>("Period")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CategoryId");
+
+                    b.HasIndex("UserId", "CategoryId", "Period")
+                        .IsUnique();
+
+                    b.ToTable("Budgets");
+                });
+
             modelBuilder.Entity("ExpenseTracker.Domain.Entities.Category", b =>
                 {
                     b.Property<Guid>("Id")
@@ -623,6 +663,16 @@ namespace ExpenseTracker.Infrastructure.Migrations.Postgres
                     b.Navigation("Currency");
                 });
 
+            modelBuilder.Entity("ExpenseTracker.Domain.Entities.Budget", b =>
+                {
+                    b.HasOne("ExpenseTracker.Domain.Entities.Category", "Category")
+                        .WithMany("Budgets")
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.Navigation("Category");
+                });
+
             modelBuilder.Entity("ExpenseTracker.Domain.Entities.Expense", b =>
                 {
                     b.HasOne("ExpenseTracker.Domain.Entities.Account", "Account")
@@ -647,7 +697,8 @@ namespace ExpenseTracker.Infrastructure.Migrations.Postgres
                     b.HasOne("ExpenseTracker.Domain.Entities.Category", "Category")
                         .WithMany("FutureExpenses")
                         .HasForeignKey("CategoryId")
-                        .OnDelete(DeleteBehavior.Restrict);
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
 
                     b.Navigation("Category");
                 });
@@ -663,7 +714,8 @@ namespace ExpenseTracker.Infrastructure.Migrations.Postgres
                     b.HasOne("ExpenseTracker.Domain.Entities.Category", "Category")
                         .WithMany("Incomes")
                         .HasForeignKey("CategoryId")
-                        .OnDelete(DeleteBehavior.Restrict);
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
 
                     b.Navigation("Account");
 
@@ -762,6 +814,8 @@ namespace ExpenseTracker.Infrastructure.Migrations.Postgres
 
             modelBuilder.Entity("ExpenseTracker.Domain.Entities.Category", b =>
                 {
+                    b.Navigation("Budgets");
+
                     b.Navigation("Expenses");
 
                     b.Navigation("FutureExpenses");

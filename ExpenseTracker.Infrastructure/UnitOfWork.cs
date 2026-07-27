@@ -12,6 +12,7 @@ namespace ExpenseTracker.Infrastructure
         private readonly ApplicationDbContext _context;
         private readonly ICurrentUserServices _currentUserServices;
         public IUserRelatedRepository<Account> Accounts { get; }
+        public IUserRelatedRepository<Budget> Budgets { get; }
         public IUserRelatedRepository<Category> Categories { get; }
         public IUserRelatedRepository<Currency> Currencies { get; }
         public IUserRelatedRepository<Expense> Expenses { get; }
@@ -26,6 +27,7 @@ namespace ExpenseTracker.Infrastructure
             _currentUserServices = currentUserServices;
 
             Accounts = new UserRelatedRepository<Account>(_context, _currentUserServices);
+            Budgets = new UserRelatedRepository<Budget>(_context, _currentUserServices);
             Categories = new UserRelatedRepository<Category>(_context, _currentUserServices);
             Currencies = new UserRelatedRepository<Currency>(_context, _currentUserServices);
             Expenses = new UserRelatedRepository<Expense>(_context, _currentUserServices);

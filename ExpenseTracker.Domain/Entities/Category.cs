@@ -22,5 +22,6 @@ namespace ExpenseTracker.Domain.Entities
         public ICollection<Income> Incomes { get; set; } = new List<Income>();
         public ICollection<SavingGoal> SavingGoals { get; set; } = new List<SavingGoal>();
         public ICollection<FutureExpense> FutureExpenses { get; set; } = new List<FutureExpense>();
+        public ICollection<Budget> Budgets { get; set; } = new List<Budget>();
     }
 }
