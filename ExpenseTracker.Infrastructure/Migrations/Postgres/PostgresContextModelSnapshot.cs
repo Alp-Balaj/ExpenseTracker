@@ -398,6 +398,60 @@ namespace ExpenseTracker.Infrastructure.Migrations.Postgres
                     b.ToTable("SavingGoals");
                 });
 
+            modelBuilder.Entity("ExpenseTracker.Domain.Entities.Transfer", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<Guid>("FromAccountId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<Guid?>("SavingContributionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("SavingGoalId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ToAccountId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FromAccountId");
+
+                    b.HasIndex("SavingContributionId");
+
+                    b.HasIndex("SavingGoalId");
+
+                    b.HasIndex("ToAccountId");
+
+                    b.HasIndex("UserId", "Date");
+
+                    b.ToTable("Transfers");
+                });
+
             modelBuilder.Entity("ExpenseTracker.Domain.Entities.User.RefreshToken", b =>
                 {
                     b.Property<Guid>("Id")
@@ -776,6 +830,39 @@ namespace ExpenseTracker.Infrastructure.Migrations.Postgres
                     b.Navigation("Category");
                 });
 
+            modelBuilder.Entity("ExpenseTracker.Domain.Entities.Transfer", b =>
+                {
+                    b.HasOne("ExpenseTracker.Domain.Entities.Account", "FromAccount")
+                        .WithMany("TransfersOut")
+                        .HasForeignKey("FromAccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ExpenseTracker.Domain.Entities.SavingContribution", "SavingContribution")
+                        .WithMany()
+                        .HasForeignKey("SavingContributionId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("ExpenseTracker.Domain.Entities.SavingGoal", "SavingGoal")
+                        .WithMany()
+                        .HasForeignKey("SavingGoalId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("ExpenseTracker.Domain.Entities.Account", "ToAccount")
+                        .WithMany("TransfersIn")
+                        .HasForeignKey("ToAccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("FromAccount");
+
+                    b.Navigation("SavingContribution");
+
+                    b.Navigation("SavingGoal");
+
+                    b.Navigation("ToAccount");
+                });
+
             modelBuilder.Entity("ExpenseTracker.Domain.Entities.User.UserPreferences", b =>
                 {
                     b.HasOne("ExpenseTracker.Domain.Entities.User.User", null)
@@ -843,6 +930,10 @@ namespace ExpenseTracker.Infrastructure.Migrations.Postgres
                     b.Navigation("Incomes");
 
                     b.Navigation("SavingGoals");
+
+                    b.Navigation("TransfersIn");
+
+                    b.Navigation("TransfersOut");
                 });
 
             modelBuilder.Entity("ExpenseTracker.Domain.Entities.Category", b =>

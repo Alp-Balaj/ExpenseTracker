@@ -22,6 +22,7 @@ namespace ExpenseTracker.Infrastructure.Persistence
         public DbSet<Income> Incomes { get; set; }
         public DbSet<SavingGoal> SavingGoals { get; set; }
         public DbSet<SavingContribution> SavingContributions { get; set; }
+        public DbSet<Transfer> Transfers { get; set; }
         public DbSet<RefreshToken> RefreshTokens { get; set; }
         public DbSet<UserPreferences> UserPreferences { get; set; }
 
