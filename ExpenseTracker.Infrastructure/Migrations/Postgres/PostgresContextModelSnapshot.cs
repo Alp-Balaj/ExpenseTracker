@@ -162,6 +162,9 @@ namespace ExpenseTracker.Infrastructure.Migrations.Postgres
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<DateTime?>("RateUpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("Symbol")
                         .IsRequired()
                         .HasMaxLength(5)
@@ -175,6 +178,8 @@ namespace ExpenseTracker.Infrastructure.Migrations.Postgres
                         .HasColumnType("text");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("UserId", "Code");
 
                     b.ToTable("Currencies");
                 });
