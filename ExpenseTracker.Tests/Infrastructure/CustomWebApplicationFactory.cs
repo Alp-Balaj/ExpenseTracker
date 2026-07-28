@@ -1,7 +1,9 @@
 using ExpenseTracker.Application.Interfaces;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using ExpenseTracker.Infrastructure.Persistence;
 using Microsoft.AspNetCore.TestHost;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Testcontainers.PostgreSql;
@@ -60,6 +62,13 @@ public sealed class CustomWebApplicationFactory : WebApplicationFactory<Program>
     /// </summary>
     public StubExchangeRateProvider RateProvider { get; } = new();
 
+    /// <summary>
+    /// Counts the SQL commands each request sends. Tests in this collection run
+    /// one at a time, so a test may <see cref="QueryCountingInterceptor.Reset"/>
+    /// it, drive one request, and read the count back.
+    /// </summary>
+    public QueryCountingInterceptor QueryCounter { get; } = new();
+
     async Task IAsyncLifetime.DisposeAsync()
     {
         await _postgres.DisposeAsync();
@@ -78,6 +87,19 @@ public sealed class CustomWebApplicationFactory : WebApplicationFactory<Program>
             // runs after the app's own registrations, so this wins.
             services.RemoveAll<IExchangeRateProvider>();
             services.AddSingleton<IExchangeRateProvider>(RateProvider);
+
+            // Re-register the context purely to attach the query counter:
+            // command interceptors are not among the kinds EF discovers from
+            // the application service provider, so they have to go on the
+            // options. These are the same options AddInfrastructureServices
+            // builds — only AddInterceptors is new.
+            services.RemoveAll<DbContextOptions<PostgresContext>>();
+            services.RemoveAll<DbContextOptions>();
+            services.AddDbContext<ApplicationDbContext, PostgresContext>(options =>
+                options
+                    .UseNpgsql(_postgres.GetConnectionString(), npgsql =>
+                        npgsql.MigrationsAssembly("ExpenseTracker.Infrastructure"))
+                    .AddInterceptors(QueryCounter));
         });
     }
 }
