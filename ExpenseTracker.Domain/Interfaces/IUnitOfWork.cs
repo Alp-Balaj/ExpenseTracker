@@ -12,7 +12,8 @@ namespace ExpenseTracker.Domain.Interfaces
         IUserRelatedRepository<Income> Incomes { get; }
         IUserRelatedRepository<SavingGoal> SavingGoals { get; }
         IUserRelatedRepository<SavingContribution> SavingContributions { get; }
-        IUserRelatedRepository<FutureExpense> FutureExpenses { get; }
+        IUserRelatedRepository<PlannedTransaction> PlannedTransactions { get; }
+        IUserRelatedRepository<PlannedOccurrence> PlannedOccurrences { get; }
         IUserRelatedRepository<Transfer> Transfers { get; }
         IAccountRepository AccountRepository { get; }
         Task<int> SaveAsync(CancellationToken cancellationToken = default);

@@ -237,50 +237,6 @@ namespace ExpenseTracker.Infrastructure.Migrations.Postgres
                     b.ToTable("Expenses");
                 });
 
-            modelBuilder.Entity("ExpenseTracker.Domain.Entities.FutureExpense", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<decimal>("Amount")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<Guid>("CategoryId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<DateOnly?>("PredictedDate")
-                        .HasColumnType("date");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("UserId")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CategoryId");
-
-                    b.HasIndex("UserId", "PredictedDate");
-
-                    b.ToTable("FutureExpenses");
-                });
-
             modelBuilder.Entity("ExpenseTracker.Domain.Entities.Income", b =>
                 {
                     b.Property<Guid>("Id")
@@ -323,6 +279,135 @@ namespace ExpenseTracker.Infrastructure.Migrations.Postgres
                     b.HasIndex("UserId", "Date");
 
                     b.ToTable("Incomes");
+                });
+
+            modelBuilder.Entity("ExpenseTracker.Domain.Entities.PlannedOccurrence", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("CommittedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateOnly>("DueDate")
+                        .HasColumnType("date");
+
+                    b.Property<Guid?>("ExpenseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("IncomeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("PeriodKey")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<Guid>("PlannedTransactionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("State")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid?>("TransferId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ExpenseId");
+
+                    b.HasIndex("IncomeId");
+
+                    b.HasIndex("TransferId");
+
+                    b.HasIndex("PlannedTransactionId", "PeriodKey")
+                        .IsUnique();
+
+                    b.HasIndex("UserId", "State", "DueDate");
+
+                    b.ToTable("PlannedOccurrences");
+                });
+
+            modelBuilder.Entity("ExpenseTracker.Domain.Entities.PlannedTransaction", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<Guid?>("CategoryId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<DateOnly?>("EndDate")
+                        .HasColumnType("date");
+
+                    b.Property<Guid?>("FromAccountId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Recurrence")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid?>("SavingGoalId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateOnly>("StartDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<Guid?>("ToAccountId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CategoryId");
+
+                    b.HasIndex("FromAccountId");
+
+                    b.HasIndex("SavingGoalId");
+
+                    b.HasIndex("ToAccountId");
+
+                    b.HasIndex("UserId", "IsActive");
+
+                    b.ToTable("PlannedTransactions");
                 });
 
             modelBuilder.Entity("ExpenseTracker.Domain.Entities.SavingContribution", b =>
@@ -825,23 +910,6 @@ namespace ExpenseTracker.Infrastructure.Migrations.Postgres
                     b.Navigation("Category");
                 });
 
-            modelBuilder.Entity("ExpenseTracker.Domain.Entities.FutureExpense", b =>
-                {
-                    b.HasOne("ExpenseTracker.Domain.Entities.Category", "Category")
-                        .WithMany("FutureExpenses")
-                        .HasForeignKey("CategoryId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("ExpenseTracker.Domain.Entities.User.User", null)
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Category");
-                });
-
             modelBuilder.Entity("ExpenseTracker.Domain.Entities.Income", b =>
                 {
                     b.HasOne("ExpenseTracker.Domain.Entities.Account", "Account")
@@ -865,6 +933,81 @@ namespace ExpenseTracker.Infrastructure.Migrations.Postgres
                     b.Navigation("Account");
 
                     b.Navigation("Category");
+                });
+
+            modelBuilder.Entity("ExpenseTracker.Domain.Entities.PlannedOccurrence", b =>
+                {
+                    b.HasOne("ExpenseTracker.Domain.Entities.Expense", "Expense")
+                        .WithMany()
+                        .HasForeignKey("ExpenseId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("ExpenseTracker.Domain.Entities.Income", "Income")
+                        .WithMany()
+                        .HasForeignKey("IncomeId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("ExpenseTracker.Domain.Entities.PlannedTransaction", "PlannedTransaction")
+                        .WithMany("Occurrences")
+                        .HasForeignKey("PlannedTransactionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ExpenseTracker.Domain.Entities.Transfer", "Transfer")
+                        .WithMany()
+                        .HasForeignKey("TransferId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("ExpenseTracker.Domain.Entities.User.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Expense");
+
+                    b.Navigation("Income");
+
+                    b.Navigation("PlannedTransaction");
+
+                    b.Navigation("Transfer");
+                });
+
+            modelBuilder.Entity("ExpenseTracker.Domain.Entities.PlannedTransaction", b =>
+                {
+                    b.HasOne("ExpenseTracker.Domain.Entities.Category", "Category")
+                        .WithMany("PlannedTransactions")
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("ExpenseTracker.Domain.Entities.Account", "FromAccount")
+                        .WithMany()
+                        .HasForeignKey("FromAccountId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("ExpenseTracker.Domain.Entities.SavingGoal", "SavingGoal")
+                        .WithMany()
+                        .HasForeignKey("SavingGoalId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("ExpenseTracker.Domain.Entities.Account", "ToAccount")
+                        .WithMany()
+                        .HasForeignKey("ToAccountId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("ExpenseTracker.Domain.Entities.User.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Category");
+
+                    b.Navigation("FromAccount");
+
+                    b.Navigation("SavingGoal");
+
+                    b.Navigation("ToAccount");
                 });
 
             modelBuilder.Entity("ExpenseTracker.Domain.Entities.SavingContribution", b =>
@@ -1036,11 +1179,16 @@ namespace ExpenseTracker.Infrastructure.Migrations.Postgres
 
                     b.Navigation("Expenses");
 
-                    b.Navigation("FutureExpenses");
-
                     b.Navigation("Incomes");
 
+                    b.Navigation("PlannedTransactions");
+
                     b.Navigation("SavingGoals");
+                });
+
+            modelBuilder.Entity("ExpenseTracker.Domain.Entities.PlannedTransaction", b =>
+                {
+                    b.Navigation("Occurrences");
                 });
 
             modelBuilder.Entity("ExpenseTracker.Domain.Entities.SavingGoal", b =>

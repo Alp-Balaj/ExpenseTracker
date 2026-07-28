@@ -16,8 +16,9 @@ namespace ExpenseTracker.Infrastructure
         public IUserRelatedRepository<Category> Categories { get; }
         public IUserRelatedRepository<Currency> Currencies { get; }
         public IUserRelatedRepository<Expense> Expenses { get; }
-        public IUserRelatedRepository<FutureExpense> FutureExpenses { get; }
         public IUserRelatedRepository<Income> Incomes { get; }
+        public IUserRelatedRepository<PlannedTransaction> PlannedTransactions { get; }
+        public IUserRelatedRepository<PlannedOccurrence> PlannedOccurrences { get; }
         public IUserRelatedRepository<SavingGoal> SavingGoals { get; }
         public IUserRelatedRepository<SavingContribution> SavingContributions { get; }
         public IUserRelatedRepository<Transfer> Transfers { get; }
@@ -32,8 +33,9 @@ namespace ExpenseTracker.Infrastructure
             Categories = new UserRelatedRepository<Category>(_context, _currentUserServices);
             Currencies = new UserRelatedRepository<Currency>(_context, _currentUserServices);
             Expenses = new UserRelatedRepository<Expense>(_context, _currentUserServices);
-            FutureExpenses = new UserRelatedRepository<FutureExpense>(_context, _currentUserServices);
             Incomes = new UserRelatedRepository<Income>(_context, _currentUserServices);
+            PlannedTransactions = new UserRelatedRepository<PlannedTransaction>(_context, _currentUserServices);
+            PlannedOccurrences = new UserRelatedRepository<PlannedOccurrence>(_context, _currentUserServices);
             SavingGoals = new UserRelatedRepository<SavingGoal>(_context, _currentUserServices);
             SavingContributions = new UserRelatedRepository<SavingContribution>(_context, _currentUserServices);
             Transfers = new UserRelatedRepository<Transfer>(_context, _currentUserServices);

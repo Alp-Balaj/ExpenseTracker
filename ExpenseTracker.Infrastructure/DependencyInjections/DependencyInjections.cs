@@ -39,6 +39,11 @@ public static class DependencyInjection
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
         services.AddScoped<ITransactionReportService, TransactionReportService>();
         services.AddScoped<IUserPreferencesService, UserPreferencesService>();
+        // Sugg-4: the due queue behind planned transactions. In Infrastructure
+        // because both generating and committing need the DbContext itself —
+        // one to survive a unique-constraint race, the other to claim an
+        // occurrence with a conditional UPDATE before it moves any money.
+        services.AddScoped<IPlannedTransactionService, PlannedTransactionService>();
 
         // Sugg-8: daily exchange rate refresh. frankfurter.app needs no API key, so
         // there is nothing here to keep out of source control.

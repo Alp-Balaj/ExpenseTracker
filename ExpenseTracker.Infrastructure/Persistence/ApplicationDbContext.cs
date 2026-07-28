@@ -19,8 +19,9 @@ namespace ExpenseTracker.Infrastructure.Persistence
         public DbSet<Category> Categories { get; set; }
         public DbSet<Currency> Currencies { get; set; }
         public DbSet<Expense> Expenses { get; set; }
-        public DbSet<FutureExpense> FutureExpenses { get; set; }
         public DbSet<Income> Incomes { get; set; }
+        public DbSet<PlannedTransaction> PlannedTransactions { get; set; }
+        public DbSet<PlannedOccurrence> PlannedOccurrences { get; set; }
         public DbSet<SavingGoal> SavingGoals { get; set; }
         public DbSet<SavingContribution> SavingContributions { get; set; }
         public DbSet<Transfer> Transfers { get; set; }

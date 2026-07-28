@@ -36,15 +36,20 @@ public sealed class CategoryService : ICategoryService
 
         if (categories.Count == 0) return [];
 
-        // Four grouped aggregates, one per category type. Each is a single
-        // GROUP BY in Postgres: the amounts are summed server-side, so what
-        // comes back is a handful of rows rather than the user's whole history.
+        // One grouped aggregate per category type. Each is a single GROUP BY in
+        // Postgres: the amounts are summed server-side, so what comes back is a
+        // handful of rows rather than the user's whole history.
+        //
+        // Planned transactions are deliberately absent. They now share these
+        // same Expense/Income categories (Sugg-4 retired the separate
+        // CategoryType.FutureExpense axis), so counting them here would inflate
+        // a category with money that has not moved — and then count it a second
+        // time the moment the occurrence is committed.
         var totalsByType = new Dictionary<CategoryType, ILookup<Guid, CategoryTotal>>
         {
             [CategoryType.Expense] = await ExpenseTotalsAsync(cancellationToken),
             [CategoryType.Income] = await IncomeTotalsAsync(cancellationToken),
-            [CategoryType.SavingGoals] = await SavingGoalTotalsAsync(cancellationToken),
-            [CategoryType.FutureExpense] = await FutureExpenseTotalsAsync(cancellationToken)
+            [CategoryType.SavingGoals] = await SavingGoalTotalsAsync(cancellationToken)
         };
 
         var converter = await _conversion.GetConverterAsync(cancellationToken);
@@ -77,40 +82,24 @@ public sealed class CategoryService : ICategoryService
         return summaries;
     }
 
-    // All four project to an anonymous type and build the CategoryTotal after
-    // the round trip. Constructing the record inside the SQL projection reads
-    // better but does not survive translation intact.
     private async Task<ILookup<Guid, CategoryTotal>> ExpenseTotalsAsync(CancellationToken cancellationToken) =>
         (await _unitOfWork.Expenses.Query()
             .GroupBy(e => new { e.CategoryId, Code = e.Account.Currency.Code })
-            .Select(g => new { g.Key.CategoryId, g.Key.Code, Total = g.Sum(e => e.Amount) })
+            .Select(g => new CategoryTotal(g.Key.CategoryId, g.Key.Code, g.Sum(e => e.Amount)))
             .ToListAsync(cancellationToken))
-        .Select(row => new CategoryTotal(row.CategoryId, row.Code, row.Total))
         .ToLookup(t => t.CategoryId);
 
     private async Task<ILookup<Guid, CategoryTotal>> IncomeTotalsAsync(CancellationToken cancellationToken) =>
         (await _unitOfWork.Incomes.Query()
             .GroupBy(i => new { i.CategoryId, Code = i.Account.Currency.Code })
-            .Select(g => new { g.Key.CategoryId, g.Key.Code, Total = g.Sum(i => i.Amount) })
+            .Select(g => new CategoryTotal(g.Key.CategoryId, g.Key.Code, g.Sum(i => i.Amount)))
             .ToListAsync(cancellationToken))
-        .Select(row => new CategoryTotal(row.CategoryId, row.Code, row.Total))
         .ToLookup(t => t.CategoryId);
 
     private async Task<ILookup<Guid, CategoryTotal>> SavingGoalTotalsAsync(CancellationToken cancellationToken) =>
         (await _unitOfWork.SavingGoals.Query()
             .GroupBy(s => new { s.CategoryId, Code = s.Account.Currency.Code })
-            .Select(g => new { g.Key.CategoryId, g.Key.Code, Total = g.Sum(s => s.SavedAmount) })
+            .Select(g => new CategoryTotal(g.Key.CategoryId, g.Key.Code, g.Sum(s => s.SavedAmount)))
             .ToListAsync(cancellationToken))
-        .Select(row => new CategoryTotal(row.CategoryId, row.Code, row.Total))
-        .ToLookup(t => t.CategoryId);
-
-    // FutureExpense has no account, hence no currency of its own: a null code
-    // means the amount is assumed to already be in the user's base currency.
-    private async Task<ILookup<Guid, CategoryTotal>> FutureExpenseTotalsAsync(CancellationToken cancellationToken) =>
-        (await _unitOfWork.FutureExpenses.Query()
-            .GroupBy(f => f.CategoryId)
-            .Select(g => new { CategoryId = g.Key, Total = g.Sum(f => f.Amount) })
-            .ToListAsync(cancellationToken))
-        .Select(row => new CategoryTotal(row.CategoryId, null, row.Total))
         .ToLookup(t => t.CategoryId);
 }

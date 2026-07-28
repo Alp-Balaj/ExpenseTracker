@@ -15,6 +15,9 @@ namespace ExpenseTracker.Application.DependencyInjection
             services.AddScoped<ICurrencyConversionService, CurrencyConversionService>();
             services.AddScoped<IAccountServices, AccountServices>();
             services.AddScoped<ISavingGoalServices, SavingGoalServices>();
+            // Shared by TransferController and by committing a planned transfer,
+            // so the two can never drift apart on how a transfer is booked.
+            services.AddScoped<ITransferPostingService, TransferPostingService>();
 
             return services;
         }
