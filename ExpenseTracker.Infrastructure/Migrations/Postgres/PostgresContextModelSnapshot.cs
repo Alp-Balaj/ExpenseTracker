@@ -61,6 +61,8 @@ namespace ExpenseTracker.Infrastructure.Migrations.Postgres
 
                     b.HasIndex("CurrencyId");
 
+                    b.HasIndex("UserId");
+
                     b.ToTable("Accounts");
                 });
 
@@ -137,6 +139,8 @@ namespace ExpenseTracker.Infrastructure.Migrations.Postgres
                         .HasColumnType("text");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("UserId");
 
                     b.ToTable("Categories");
                 });
@@ -228,6 +232,8 @@ namespace ExpenseTracker.Infrastructure.Migrations.Postgres
 
                     b.HasIndex("CategoryId");
 
+                    b.HasIndex("UserId", "Date");
+
                     b.ToTable("Expenses");
                 });
 
@@ -269,6 +275,8 @@ namespace ExpenseTracker.Infrastructure.Migrations.Postgres
                     b.HasKey("Id");
 
                     b.HasIndex("CategoryId");
+
+                    b.HasIndex("UserId", "PredictedDate");
 
                     b.ToTable("FutureExpenses");
                 });
@@ -312,6 +320,8 @@ namespace ExpenseTracker.Infrastructure.Migrations.Postgres
 
                     b.HasIndex("CategoryId");
 
+                    b.HasIndex("UserId", "Date");
+
                     b.ToTable("Incomes");
                 });
 
@@ -348,6 +358,8 @@ namespace ExpenseTracker.Infrastructure.Migrations.Postgres
                     b.HasKey("Id");
 
                     b.HasIndex("GoalId");
+
+                    b.HasIndex("UserId", "Date");
 
                     b.ToTable("SavingContributions");
                 });
@@ -399,6 +411,8 @@ namespace ExpenseTracker.Infrastructure.Migrations.Postgres
                     b.HasIndex("AccountId");
 
                     b.HasIndex("CategoryId");
+
+                    b.HasIndex("UserId");
 
                     b.ToTable("SavingGoals");
                 });
@@ -743,6 +757,12 @@ namespace ExpenseTracker.Infrastructure.Migrations.Postgres
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("ExpenseTracker.Domain.Entities.User.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.Navigation("Currency");
                 });
 
@@ -753,7 +773,31 @@ namespace ExpenseTracker.Infrastructure.Migrations.Postgres
                         .HasForeignKey("CategoryId")
                         .OnDelete(DeleteBehavior.Cascade);
 
+                    b.HasOne("ExpenseTracker.Domain.Entities.User.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.Navigation("Category");
+                });
+
+            modelBuilder.Entity("ExpenseTracker.Domain.Entities.Category", b =>
+                {
+                    b.HasOne("ExpenseTracker.Domain.Entities.User.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ExpenseTracker.Domain.Entities.Currency", b =>
+                {
+                    b.HasOne("ExpenseTracker.Domain.Entities.User.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("ExpenseTracker.Domain.Entities.Expense", b =>
@@ -770,6 +814,12 @@ namespace ExpenseTracker.Infrastructure.Migrations.Postgres
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("ExpenseTracker.Domain.Entities.User.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.Navigation("Account");
 
                     b.Navigation("Category");
@@ -781,6 +831,12 @@ namespace ExpenseTracker.Infrastructure.Migrations.Postgres
                         .WithMany("FutureExpenses")
                         .HasForeignKey("CategoryId")
                         .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ExpenseTracker.Domain.Entities.User.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("Category");
@@ -800,6 +856,12 @@ namespace ExpenseTracker.Infrastructure.Migrations.Postgres
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("ExpenseTracker.Domain.Entities.User.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.Navigation("Account");
 
                     b.Navigation("Category");
@@ -810,6 +872,12 @@ namespace ExpenseTracker.Infrastructure.Migrations.Postgres
                     b.HasOne("ExpenseTracker.Domain.Entities.SavingGoal", "SavingGoal")
                         .WithMany("SavingContributions")
                         .HasForeignKey("GoalId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ExpenseTracker.Domain.Entities.User.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
@@ -828,6 +896,12 @@ namespace ExpenseTracker.Infrastructure.Migrations.Postgres
                         .WithMany("SavingGoals")
                         .HasForeignKey("CategoryId")
                         .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ExpenseTracker.Domain.Entities.User.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("Account");
@@ -859,6 +933,12 @@ namespace ExpenseTracker.Infrastructure.Migrations.Postgres
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("ExpenseTracker.Domain.Entities.User.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.Navigation("FromAccount");
 
                     b.Navigation("SavingContribution");
@@ -866,6 +946,15 @@ namespace ExpenseTracker.Infrastructure.Migrations.Postgres
                     b.Navigation("SavingGoal");
 
                     b.Navigation("ToAccount");
+                });
+
+            modelBuilder.Entity("ExpenseTracker.Domain.Entities.User.RefreshToken", b =>
+                {
+                    b.HasOne("ExpenseTracker.Domain.Entities.User.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("ExpenseTracker.Domain.Entities.User.UserPreferences", b =>

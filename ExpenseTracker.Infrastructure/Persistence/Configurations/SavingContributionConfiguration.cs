@@ -24,6 +24,8 @@ namespace ExpenseTracker.Infrastructure.Persistence.Configurations
                    .HasForeignKey(sc => sc.GoalId)
                    .IsRequired()
                    .OnDelete(DeleteBehavior.Cascade);
+
+            builder.HasIndex(sc => new { sc.UserId, sc.Date });
         }
     }
 }

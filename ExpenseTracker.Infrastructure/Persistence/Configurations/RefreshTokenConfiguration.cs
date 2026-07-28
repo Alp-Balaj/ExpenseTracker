@@ -15,6 +15,14 @@ namespace ExpenseTracker.Infrastructure.Persistence.Configurations
 
             builder.HasIndex(x => x.TokenHash).IsUnique();
             builder.HasIndex(x => x.UserId);
+
+            // No navigation property on either side — the FK exists so deleting
+            // a user takes their outstanding refresh tokens with them, the same
+            // way it takes their preferences.
+            builder.HasOne<User>()
+                   .WithMany()
+                   .HasForeignKey(x => x.UserId)
+                   .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }

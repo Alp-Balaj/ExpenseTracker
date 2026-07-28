@@ -33,6 +33,11 @@ namespace ExpenseTracker.Infrastructure.Persistence.Configurations
                    .WithMany(c => c.Expenses)
                    .HasForeignKey(e => e.CategoryId)
                    .OnDelete(DeleteBehavior.Restrict);
+
+            // Every read is "this user's expenses", usually over a period and
+            // newest-first: leading with UserId serves the filter, Date serves
+            // both the range scan and the sort a page is taken from.
+            builder.HasIndex(e => new { e.UserId, e.Date });
         }
     }
 }
