@@ -165,7 +165,7 @@ public sealed class PaginationTests
         foreach (var endpoint in new[]
                  {
                      "/api/Account", "/api/Budget", "/api/Category", "/api/Currency",
-                     "/api/Expense", "/api/FutureExpense", "/api/Income",
+                     "/api/Expense", "/api/Income", "/api/PlannedTransaction",
                      "/api/SavingContribution", "/api/SavingGoal", "/api/Transfer"
                  })
         {

@@ -59,13 +59,19 @@ public sealed class UserDeletionCascadeTests
             categoryId = expenseCategory
         })).EnsureSuccessStatusCode();
 
-        (await client.PostAsJsonAsync("/api/FutureExpense", new
+        // Backdated so reading the list materialises an occurrence too, which is
+        // what puts a PlannedOccurrence row in front of the cascade.
+        (await client.PostAsJsonAsync("/api/PlannedTransaction", new
         {
             title = "Bill",
             amount = 30m,
-            predictedDate = "2026-02-01",
-            categoryId = expenseCategory
+            kind = 0,
+            recurrence = 0,
+            startDate = "2026-02-01",
+            categoryId = expenseCategory,
+            fromAccountId = fromAccount
         })).EnsureSuccessStatusCode();
+        (await client.GetAsync("/api/PlannedTransaction/occurrences")).EnsureSuccessStatusCode();
 
         (await client.PostAsJsonAsync("/api/Budget", new
         {
@@ -118,8 +124,9 @@ public sealed class UserDeletionCascadeTests
         Assert.False(await db.Categories.AnyAsync(x => x.UserId == userId));
         Assert.False(await db.Currencies.AnyAsync(x => x.UserId == userId));
         Assert.False(await db.Expenses.AnyAsync(x => x.UserId == userId));
-        Assert.False(await db.FutureExpenses.AnyAsync(x => x.UserId == userId));
         Assert.False(await db.Incomes.AnyAsync(x => x.UserId == userId));
+        Assert.False(await db.PlannedTransactions.AnyAsync(x => x.UserId == userId));
+        Assert.False(await db.PlannedOccurrences.AnyAsync(x => x.UserId == userId));
         Assert.False(await db.SavingContributions.AnyAsync(x => x.UserId == userId));
         Assert.False(await db.SavingGoals.AnyAsync(x => x.UserId == userId));
         Assert.False(await db.Transfers.AnyAsync(x => x.UserId == userId));

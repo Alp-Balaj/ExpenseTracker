@@ -107,7 +107,6 @@ public sealed class CategorySummaryTests
         var expenseCategory = await ApiClient.CreateCategoryAsync(client, categoryType: 0);
         var incomeCategory = await ApiClient.CreateCategoryAsync(client, categoryType: 1);
         var goalCategory = await ApiClient.CreateCategoryAsync(client, categoryType: 2);
-        var futureCategory = await ApiClient.CreateCategoryAsync(client, categoryType: 3);
 
         await PostExpenseAsync(client, accountId, expenseCategory, 11m);
 
@@ -140,12 +139,19 @@ public sealed class CategorySummaryTests
             date = "2026-02-10"
         })).EnsureSuccessStatusCode();
 
-        (await client.PostAsJsonAsync("/api/FutureExpense", new
+        // A planned expense against the very same category. It must not reach the
+        // total: nothing has been paid yet, and counting it here would both
+        // inflate the category now and count it twice the moment the occurrence
+        // is committed into a real expense.
+        (await client.PostAsJsonAsync("/api/PlannedTransaction", new
         {
             title = "Bill",
             amount = 44m,
-            predictedDate = "2026-03-03",
-            categoryId = futureCategory
+            kind = 0,
+            recurrence = 0,
+            startDate = "2026-03-03",
+            categoryId = expenseCategory,
+            fromAccountId = accountId
         })).EnsureSuccessStatusCode();
 
         var summaries = await GetSummariesAsync(client);
@@ -153,7 +159,6 @@ public sealed class CategorySummaryTests
         Assert.Equal(11m, SummaryFor(summaries, expenseCategory).GetProperty("totalAmount").GetDecimal());
         Assert.Equal(22m, SummaryFor(summaries, incomeCategory).GetProperty("totalAmount").GetDecimal());
         Assert.Equal(33m, SummaryFor(summaries, goalCategory).GetProperty("totalAmount").GetDecimal());
-        Assert.Equal(44m, SummaryFor(summaries, futureCategory).GetProperty("totalAmount").GetDecimal());
     }
 
     [Fact]
