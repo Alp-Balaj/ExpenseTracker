@@ -27,11 +27,11 @@ namespace ExpenseTracker.API.Controllers
         protected override SavingGoal ToEntity(SavingGoalDTO dto) => dto.ToEntity();
         protected override void ApplyUpdates(SavingGoal entity, SavingGoalDTO dto) => entity.Apply(dto);
 
-        protected override async Task<string?> ValidateReferencesAsync(SavingGoalDTO dto)
+        protected override async Task<string?> ValidateReferencesAsync(SavingGoalDTO dto, CancellationToken cancellationToken = default)
         {
-            if (await _accountRepository.GetUserDataByIdAsync(dto.AccountId) == null)
+            if (await _accountRepository.GetUserDataByIdAsync(dto.AccountId, cancellationToken) == null)
                 return "Account not found";
-            if (await _categoryRepository.GetUserDataByIdAsync(dto.CategoryId) == null)
+            if (await _categoryRepository.GetUserDataByIdAsync(dto.CategoryId, cancellationToken) == null)
                 return "Category not found";
             return null;
         }

@@ -16,11 +16,11 @@ public class UserPreferencesService : IUserPreferencesService
         _user = user;
     }
 
-    public async Task<UserPreferences> GetAsync()
+    public async Task<UserPreferences> GetAsync(CancellationToken cancellationToken = default)
     {
         var prefs = await _context.UserPreferences
             .AsNoTracking()
-            .FirstOrDefaultAsync(x => x.UserId == _user.UserId);
+            .FirstOrDefaultAsync(x => x.UserId == _user.UserId, cancellationToken);
 
         // A user who has never saved preferences has no row: hand back the
         // defaults rather than writing one on a read (the Mongo version
@@ -28,10 +28,10 @@ public class UserPreferencesService : IUserPreferencesService
         return prefs ?? new UserPreferences { UserId = _user.UserId };
     }
 
-    public async Task UpdateAsync(UserPreferences updated)
+    public async Task UpdateAsync(UserPreferences updated, CancellationToken cancellationToken = default)
     {
         var prefs = await _context.UserPreferences
-            .FirstOrDefaultAsync(x => x.UserId == _user.UserId);
+            .FirstOrDefaultAsync(x => x.UserId == _user.UserId, cancellationToken);
 
         if (prefs is null)
         {
@@ -42,6 +42,6 @@ public class UserPreferencesService : IUserPreferencesService
         prefs.Theme = updated.Theme;
         prefs.BaseCurrency = updated.BaseCurrency;
 
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(cancellationToken);
     }
 }

@@ -48,18 +48,23 @@ namespace ExpenseTracker.API.Controllers
         protected override Transfer ToEntity(TransferDTO dto) => dto.ToEntity();
         protected override void ApplyUpdates(Transfer entity, TransferDTO dto) => entity.Apply(dto);
 
+        // Newest move first, matching the (UserId, Date) index the transfer
+        // table already carries.
+        protected override IOrderedQueryable<Transfer> OrderForListing(IQueryable<Transfer> query) =>
+            query.OrderByDescending(e => e.Date).ThenByDescending(e => e.CreatedAt).ThenBy(e => e.Id);
+
         // Both accounts are loaded (not just balance-adjusted) because v1 needs
         // their currencies: "Account not found" covers both the missing and the
         // someone-else's case, so it never confirms another user's ids.
-        protected override async Task<string?> ValidateReferencesAsync(TransferDTO dto)
+        protected override async Task<string?> ValidateReferencesAsync(TransferDTO dto, CancellationToken cancellationToken = default)
         {
             if (dto.FromAccountId == dto.ToAccountId)
                 return "A transfer must be between two different accounts";
 
-            var from = await _accountRepository.GetUserDataWithCurrencyByIdAsync(dto.FromAccountId);
+            var from = await _accountRepository.GetUserDataWithCurrencyByIdAsync(dto.FromAccountId, cancellationToken);
             if (from == null) return "Account not found";
 
-            var to = await _accountRepository.GetUserDataWithCurrencyByIdAsync(dto.ToAccountId);
+            var to = await _accountRepository.GetUserDataWithCurrencyByIdAsync(dto.ToAccountId, cancellationToken);
             if (to == null) return "Account not found";
 
             // v1 carries a single amount, which only describes both sides of the
@@ -70,7 +75,7 @@ namespace ExpenseTracker.API.Controllers
 
             if (dto.SavingGoalId is Guid goalId)
             {
-                var goal = await _savingGoalRepository.GetUserDataByIdAsync(goalId);
+                var goal = await _savingGoalRepository.GetUserDataByIdAsync(goalId, cancellationToken);
                 if (goal == null)
                     return "Saving goal not found";
 
@@ -84,36 +89,36 @@ namespace ExpenseTracker.API.Controllers
         }
 
         [HttpPost]
-        public override async Task<IActionResult> Create([FromBody] TransferDTO dto)
+        public override async Task<IActionResult> Create([FromBody] TransferDTO dto, CancellationToken cancellationToken)
         {
-            var referenceError = await ValidateReferencesAsync(dto);
+            var referenceError = await ValidateReferencesAsync(dto, cancellationToken);
             if (referenceError != null) return BadRequest(referenceError);
 
             var entity = ToEntity(dto);
 
-            await using var transaction = await _unitOfWork.BeginTransactionAsync();
+            await using var transaction = await _unitOfWork.BeginTransactionAsync(cancellationToken);
 
-            var error = await ApplyMoveAsync(entity.Amount, entity.FromAccountId, entity.ToAccountId, +1);
+            var error = await ApplyMoveAsync(entity.Amount, entity.FromAccountId, entity.ToAccountId, +1, cancellationToken);
             if (error != null) return BadRequest(error);
 
-            error = await LinkContributionAsync(entity);
+            error = await LinkContributionAsync(entity, cancellationToken);
             if (error != null) return BadRequest(error);
 
-            await _repository.AddAsync(entity);
+            await _repository.AddAsync(entity, cancellationToken);
 
-            await _unitOfWork.SaveAsync();
-            await transaction.CommitAsync();
+            await _unitOfWork.SaveAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
 
             return CreatedAtAction(nameof(Get), new { id = entity.Id }, ToDto(entity));
         }
 
         [HttpPut("{id:guid}")]
-        public override async Task<IActionResult> Update(Guid id, [FromBody] TransferDTO dto)
+        public override async Task<IActionResult> Update(Guid id, [FromBody] TransferDTO dto, CancellationToken cancellationToken)
         {
-            var entity = await _repository.GetUserDataByIdAsync(id);
+            var entity = await _repository.GetUserDataByIdAsync(id, cancellationToken);
             if (entity == null) return NotFound();
 
-            var referenceError = await ValidateReferencesAsync(dto);
+            var referenceError = await ValidateReferencesAsync(dto, cancellationToken);
             if (referenceError != null) return BadRequest(referenceError);
 
             // Snapshot before ApplyUpdates overwrites the old values: the reversal
@@ -123,53 +128,53 @@ namespace ExpenseTracker.API.Controllers
             var bookedToAccountId = entity.ToAccountId;
             var bookedContributionId = entity.SavingContributionId;
 
-            await using var transaction = await _unitOfWork.BeginTransactionAsync();
+            await using var transaction = await _unitOfWork.BeginTransactionAsync(cancellationToken);
 
-            var error = await ApplyMoveAsync(bookedAmount, bookedFromAccountId, bookedToAccountId, -1);
+            var error = await ApplyMoveAsync(bookedAmount, bookedFromAccountId, bookedToAccountId, -1, cancellationToken);
             if (error != null) return BadRequest(error);
 
             // The old contribution is dropped and a fresh one booked rather than
             // edited in place. An edit can change the goal, the amount and the
             // date at once; recreating keeps one code path for every combination,
             // at the cost of a new contribution id.
-            error = await UnlinkContributionAsync(bookedContributionId);
+            error = await UnlinkContributionAsync(bookedContributionId, cancellationToken);
             if (error != null) return BadRequest(error);
 
             ApplyUpdates(entity, dto);
             entity.SavingContributionId = null;
 
-            error = await ApplyMoveAsync(entity.Amount, entity.FromAccountId, entity.ToAccountId, +1);
+            error = await ApplyMoveAsync(entity.Amount, entity.FromAccountId, entity.ToAccountId, +1, cancellationToken);
             if (error != null) return BadRequest(error);
 
-            error = await LinkContributionAsync(entity);
+            error = await LinkContributionAsync(entity, cancellationToken);
             if (error != null) return BadRequest(error);
 
             _repository.UpdateUserData(entity);
 
-            await _unitOfWork.SaveAsync();
-            await transaction.CommitAsync();
+            await _unitOfWork.SaveAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
 
             return NoContent();
         }
 
         [HttpDelete("{id:guid}")]
-        public override async Task<IActionResult> Delete(Guid id)
+        public override async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
         {
-            var entity = await _repository.GetUserDataByIdAsync(id);
+            var entity = await _repository.GetUserDataByIdAsync(id, cancellationToken);
             if (entity == null) return NotFound();
 
-            await using var transaction = await _unitOfWork.BeginTransactionAsync();
+            await using var transaction = await _unitOfWork.BeginTransactionAsync(cancellationToken);
 
-            var error = await ApplyMoveAsync(entity.Amount, entity.FromAccountId, entity.ToAccountId, -1);
+            var error = await ApplyMoveAsync(entity.Amount, entity.FromAccountId, entity.ToAccountId, -1, cancellationToken);
             if (error != null) return BadRequest(error);
 
-            error = await UnlinkContributionAsync(entity.SavingContributionId);
+            error = await UnlinkContributionAsync(entity.SavingContributionId, cancellationToken);
             if (error != null) return BadRequest(error);
 
             _repository.DeleteUserData(entity);
 
-            await _unitOfWork.SaveAsync();
-            await transaction.CommitAsync();
+            await _unitOfWork.SaveAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
 
             return NoContent();
         }
@@ -177,12 +182,12 @@ namespace ExpenseTracker.API.Controllers
         // Moves an amount between two accounts: sign +1 books the move,
         // -1 reverses it. Both legs are user-scoped atomic UPDATEs (Fix-2's
         // mechanism), and the caller's DB transaction is what keeps them paired.
-        private async Task<string?> ApplyMoveAsync(decimal amount, Guid fromAccountId, Guid toAccountId, int sign)
+        private async Task<string?> ApplyMoveAsync(decimal amount, Guid fromAccountId, Guid toAccountId, int sign, CancellationToken cancellationToken)
         {
-            var debit = await _accountServices.AdjustAccountBalance(-sign * amount, fromAccountId);
+            var debit = await _accountServices.AdjustAccountBalance(-sign * amount, fromAccountId, cancellationToken);
             if (!debit.Success) return debit.ErrorMessage;
 
-            var credit = await _accountServices.AdjustAccountBalance(sign * amount, toAccountId);
+            var credit = await _accountServices.AdjustAccountBalance(sign * amount, toAccountId, cancellationToken);
             if (!credit.Success) return credit.ErrorMessage;
 
             return null;
@@ -190,7 +195,7 @@ namespace ExpenseTracker.API.Controllers
 
         // Books the savings contribution for a transfer that names a goal, and
         // stamps the transfer with its id. No goal named: nothing to do.
-        private async Task<string?> LinkContributionAsync(Transfer transfer)
+        private async Task<string?> LinkContributionAsync(Transfer transfer, CancellationToken cancellationToken)
         {
             if (transfer.SavingGoalId is not Guid goalId)
                 return null;
@@ -205,10 +210,10 @@ namespace ExpenseTracker.API.Controllers
                 SavingGoal = null!
             };
 
-            var (success, errorMessage) = await _savingGoalServices.UpdateSavingGoalAmount(goalId, transfer.Amount);
+            var (success, errorMessage) = await _savingGoalServices.UpdateSavingGoalAmount(goalId, transfer.Amount, cancellationToken);
             if (!success) return errorMessage;
 
-            await _contributionRepository.AddAsync(contribution);
+            await _contributionRepository.AddAsync(contribution, cancellationToken);
             transfer.SavingContributionId = contribution.Id;
 
             return null;
@@ -219,15 +224,15 @@ namespace ExpenseTracker.API.Controllers
         // the contribution was deleted on its own (the FK nulls out the link
         // afterwards), in which case the goal total was already corrected by
         // that delete and there is nothing left to reverse.
-        private async Task<string?> UnlinkContributionAsync(Guid? savingContributionId)
+        private async Task<string?> UnlinkContributionAsync(Guid? savingContributionId, CancellationToken cancellationToken)
         {
             if (savingContributionId is not Guid contributionId)
                 return null;
 
-            var contribution = await _contributionRepository.GetUserDataByIdAsync(contributionId);
+            var contribution = await _contributionRepository.GetUserDataByIdAsync(contributionId, cancellationToken);
             if (contribution == null) return null;
 
-            var (success, errorMessage) = await _savingGoalServices.UpdateSavingGoalAmount(contribution.GoalId, -contribution.Amount);
+            var (success, errorMessage) = await _savingGoalServices.UpdateSavingGoalAmount(contribution.GoalId, -contribution.Amount, cancellationToken);
             if (!success) return errorMessage;
 
             _contributionRepository.DeleteUserData(contribution);

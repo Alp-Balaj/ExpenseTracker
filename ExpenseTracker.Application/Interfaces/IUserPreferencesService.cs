@@ -4,7 +4,7 @@ namespace ExpenseTracker.Application.Interfaces
 {
     public interface IUserPreferencesService
     {
-        Task<UserPreferences> GetAsync();
-        Task UpdateAsync(UserPreferences updated);
+        Task<UserPreferences> GetAsync(CancellationToken cancellationToken = default);
+        Task UpdateAsync(UserPreferences updated, CancellationToken cancellationToken = default);
     }
 }

@@ -40,10 +40,11 @@ namespace ExpenseTracker.Infrastructure
             AccountRepository = new AccountRepository(_context, _currentUserServices);
         }
 
-        public async Task<int> SaveAsync() => await _context.SaveChangesAsync();
+        public async Task<int> SaveAsync(CancellationToken cancellationToken = default) =>
+            await _context.SaveChangesAsync(cancellationToken);
 
-        public async Task<IUnitOfWorkTransaction> BeginTransactionAsync() =>
-            new EfUnitOfWorkTransaction(await _context.Database.BeginTransactionAsync());
+        public async Task<IUnitOfWorkTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default) =>
+            new EfUnitOfWorkTransaction(await _context.Database.BeginTransactionAsync(cancellationToken));
 
         public void Dispose() => _context.Dispose();
 
@@ -51,8 +52,8 @@ namespace ExpenseTracker.Infrastructure
         {
             private readonly IDbContextTransaction _transaction;
             public EfUnitOfWorkTransaction(IDbContextTransaction transaction) => _transaction = transaction;
-            public Task CommitAsync() => _transaction.CommitAsync();
-            public Task RollbackAsync() => _transaction.RollbackAsync();
+            public Task CommitAsync(CancellationToken cancellationToken = default) => _transaction.CommitAsync(cancellationToken);
+            public Task RollbackAsync(CancellationToken cancellationToken = default) => _transaction.RollbackAsync(cancellationToken);
             public ValueTask DisposeAsync() => _transaction.DisposeAsync();
         }
     }

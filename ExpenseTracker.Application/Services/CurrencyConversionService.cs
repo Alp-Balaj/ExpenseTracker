@@ -17,12 +17,12 @@ namespace ExpenseTracker.Application.Services
             _preferences = preferences;
         }
 
-        public async Task<CurrencyConverter> GetConverterAsync()
+        public async Task<CurrencyConverter> GetConverterAsync(CancellationToken cancellationToken = default)
         {
             string? baseCurrency;
             try
             {
-                var prefs = await _preferences.GetAsync();
+                var prefs = await _preferences.GetAsync(cancellationToken);
                 baseCurrency = string.IsNullOrWhiteSpace(prefs.BaseCurrency)
                     ? null
                     : prefs.BaseCurrency.Trim();
@@ -34,7 +34,7 @@ namespace ExpenseTracker.Application.Services
                 baseCurrency = null;
             }
 
-            var currencies = await _unitOfWork.Currencies.GetAllUserDataAsync();
+            var currencies = await _unitOfWork.Currencies.GetAllUserDataAsync(cancellationToken);
 
             var rates = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
             foreach (var currency in currencies)

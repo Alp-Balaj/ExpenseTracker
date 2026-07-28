@@ -1,4 +1,6 @@
-﻿namespace ExpenseTracker.API.Extensions
+﻿using ExpenseTracker.Application.DTOs;
+
+namespace ExpenseTracker.API.Extensions
 {
     public static class CorsExtensions
     {
@@ -23,6 +25,10 @@
                         .WithOrigins(origins.ToArray())
                         .AllowAnyHeader()
                         .AllowAnyMethod()
+                        // Browsers hide every response header from JS except a
+                        // short safelist, so the paging total has to be named
+                        // explicitly or the SPA can never read it.
+                        .WithExposedHeaders(PageQuery.TotalCountHeader)
                         .AllowCredentials();
                 });
             });

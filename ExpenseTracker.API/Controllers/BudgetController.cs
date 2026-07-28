@@ -38,17 +38,17 @@ namespace ExpenseTracker.API.Controllers
         protected override void ApplyUpdates(Budget entity, BudgetDTO dto) => entity.Apply(dto);
 
         [HttpPut("{id:guid}")]
-        public override Task<IActionResult> Update(Guid id, [FromBody] BudgetDTO dto)
+        public override Task<IActionResult> Update(Guid id, [FromBody] BudgetDTO dto, CancellationToken cancellationToken)
         {
             _idBeingUpdated = id;
-            return base.Update(id, dto);
+            return base.Update(id, dto, cancellationToken);
         }
 
-        protected override async Task<string?> ValidateReferencesAsync(BudgetDTO dto)
+        protected override async Task<string?> ValidateReferencesAsync(BudgetDTO dto, CancellationToken cancellationToken = default)
         {
             if (dto.CategoryId is Guid categoryId)
             {
-                var category = await _categoryRepository.GetUserDataByIdAsync(categoryId);
+                var category = await _categoryRepository.GetUserDataByIdAsync(categoryId, cancellationToken);
                 if (category == null)
                     return "Category not found";
 
@@ -59,7 +59,11 @@ namespace ExpenseTracker.API.Controllers
             }
 
             var period = (BudgetPeriod)dto.Period;
-            var existing = await _repository.GetAllUserDataAsync();
+
+            // Bounded by construction — at most one budget per category per
+            // period — so loading them to check the duplicate is not the
+            // unbounded read the other list paths were.
+            var existing = await _repository.GetAllUserDataAsync(cancellationToken);
 
             var duplicate = existing.Any(b =>
                 b.Id != _idBeingUpdated &&
@@ -79,7 +83,7 @@ namespace ExpenseTracker.API.Controllers
         /// <c>month</c> is <c>yyyy-MM</c> and defaults to the current month.
         /// </summary>
         [HttpGet("status")]
-        public async Task<IActionResult> GetStatus([FromQuery] string? month)
+        public async Task<IActionResult> GetStatus([FromQuery] string? month, CancellationToken cancellationToken)
         {
             int year, monthNumber;
 
@@ -94,7 +98,7 @@ namespace ExpenseTracker.API.Controllers
                 return BadRequest("month must be in yyyy-MM format.");
             }
 
-            var statuses = await _budgetService.GetStatusAsync(year, monthNumber);
+            var statuses = await _budgetService.GetStatusAsync(year, monthNumber, cancellationToken);
             return Ok(statuses);
         }
     }

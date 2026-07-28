@@ -29,11 +29,14 @@ namespace ExpenseTracker.API.Controllers
         protected override decimal AmountOf(Income entity) => entity.Amount;
         protected override Guid AccountIdOf(Income entity) => entity.AccountId;
 
+        protected override IOrderedQueryable<Income> OrderForListing(IQueryable<Income> query) =>
+            query.OrderByDescending(e => e.Date).ThenByDescending(e => e.CreatedAt).ThenBy(e => e.Id);
+
         // AccountId is already ownership-checked by the user-scoped balance
         // adjustment; CategoryId has no such side effect, so check it here.
-        protected override async Task<string?> ValidateReferencesAsync(IncomeDTO dto)
+        protected override async Task<string?> ValidateReferencesAsync(IncomeDTO dto, CancellationToken cancellationToken = default)
         {
-            if (await _categoryRepository.GetUserDataByIdAsync(dto.CategoryId) == null)
+            if (await _categoryRepository.GetUserDataByIdAsync(dto.CategoryId, cancellationToken) == null)
                 return "Category not found";
             return null;
         }

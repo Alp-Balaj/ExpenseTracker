@@ -29,10 +29,11 @@ namespace ExpenseTracker.API.Controllers
         protected override void ApplyUpdates(Currency entity, CurrencyDTO dto) => entity.Apply(dto);
         protected CurrencyDropdownDTO ToDropdownDto(Currency entity) => entity.ToDropdownDto();
 
+        // Feeds a <select>: never windowed, and small by nature.
         [HttpGet("Dropdown")]
-        public virtual async Task<IActionResult> GetAllDropdown()
+        public virtual async Task<IActionResult> GetAllDropdown(CancellationToken cancellationToken)
         {
-            var entities = await _repository.GetAllUserDataAsync();
+            var entities = await _repository.GetAllUserDataAsync(cancellationToken);
             var dtos = entities.Select(ToDropdownDto).ToList();
             return Ok(dtos);
         }
@@ -49,7 +50,7 @@ namespace ExpenseTracker.API.Controllers
             var userId = _repository.GetCurrentUserId();
             var result = await _rateUpdater.UpdateUserAsync(userId, cancellationToken);
 
-            var currencies = await _repository.GetAllUserDataAsync();
+            var currencies = await _repository.GetAllUserDataAsync(cancellationToken);
 
             return Ok(new
             {

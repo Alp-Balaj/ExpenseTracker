@@ -24,9 +24,17 @@ namespace ExpenseTracker.API.Controllers
         protected override FutureExpense ToEntity(FutureExpenseDTO dto) => dto.ToEntity();
         protected override void ApplyUpdates(FutureExpense entity, FutureExpenseDTO dto) => entity.Apply(dto);
 
-        protected override async Task<string?> ValidateReferencesAsync(FutureExpenseDTO dto)
+        // Soonest bill first: unlike an expense, a future expense is read
+        // forwards. Rows without a predicted date sort last.
+        protected override IOrderedQueryable<FutureExpense> OrderForListing(IQueryable<FutureExpense> query) =>
+            query.OrderBy(e => e.PredictedDate == null)
+                 .ThenBy(e => e.PredictedDate)
+                 .ThenBy(e => e.CreatedAt)
+                 .ThenBy(e => e.Id);
+
+        protected override async Task<string?> ValidateReferencesAsync(FutureExpenseDTO dto, CancellationToken cancellationToken = default)
         {
-            if (await _categoryRepository.GetUserDataByIdAsync(dto.CategoryId) == null)
+            if (await _categoryRepository.GetUserDataByIdAsync(dto.CategoryId, cancellationToken) == null)
                 return "Category not found";
             return null;
         }

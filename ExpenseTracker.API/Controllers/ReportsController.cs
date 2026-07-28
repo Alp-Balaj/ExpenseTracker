@@ -20,16 +20,16 @@ public sealed class ReportsController : ControllerBase
     }
 
     [HttpPost("transactions/preview")]
-    public async Task<IActionResult> Preview([FromBody] TransactionReportRequest request)
+    public async Task<IActionResult> Preview([FromBody] TransactionReportRequest request, CancellationToken cancellationToken)
     {
-        var result = await _service.GenerateAsync(request);
+        var result = await _service.GenerateAsync(request, cancellationToken);
         return Ok(result);
     }
 
     [HttpPost("transactions/export")]
-    public async Task<IActionResult> ExportCsv([FromBody] TransactionReportRequest request)
+    public async Task<IActionResult> ExportCsv([FromBody] TransactionReportRequest request, CancellationToken cancellationToken)
     {
-        var result = await _service.GenerateAsync(request);
+        var result = await _service.GenerateAsync(request, cancellationToken);
 
         static string Csv(string s)
         {

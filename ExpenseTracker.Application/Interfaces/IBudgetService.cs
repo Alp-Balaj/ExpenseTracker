@@ -9,6 +9,6 @@ namespace ExpenseTracker.Application.Interfaces
         /// <paramref name="month"/>. Budgets recur, so the same rows are re-evaluated
         /// for whichever month is asked for — including past ones.
         /// </summary>
-        Task<IReadOnlyList<BudgetStatusDTO>> GetStatusAsync(int year, int month);
+        Task<IReadOnlyList<BudgetStatusDTO>> GetStatusAsync(int year, int month, CancellationToken cancellationToken = default);
     }
 }

@@ -27,49 +27,54 @@ namespace ExpenseTracker.API.Controllers
         protected override SavingContribution ToEntity(SavingContributionDTO dto) => dto.ToEntity();
         protected override void ApplyUpdates(SavingContribution entity, SavingContributionDTO dto) => entity.Apply(dto);
 
+        // A goal's history is read newest first.
+        protected override IOrderedQueryable<SavingContribution> OrderForListing(IQueryable<SavingContribution> query) =>
+            query.OrderByDescending(e => e.Date).ThenByDescending(e => e.CreatedAt).ThenBy(e => e.Id);
+
         [HttpPost("{goalId:guid}")]
         public async Task<IActionResult> AddContribution(
             Guid goalId,
-            [FromBody] SavingContributionDTO contributionDto
+            [FromBody] SavingContributionDTO contributionDto,
+            CancellationToken cancellationToken
         )
         {
             var entity = contributionDto.ToEntity();
 
             entity.GoalId = goalId;
 
-            return await CreateGuarded(entity);
+            return await CreateGuarded(entity, cancellationToken);
         }
 
         // Generic POST route: routed through the same guarded logic using the
         // GoalId carried in the body, so it can't create a contribution the
         // goal total doesn't account for.
         [HttpPost]
-        public override async Task<IActionResult> Create([FromBody] SavingContributionDTO dto)
+        public override async Task<IActionResult> Create([FromBody] SavingContributionDTO dto, CancellationToken cancellationToken)
         {
-            return await CreateGuarded(ToEntity(dto));
+            return await CreateGuarded(ToEntity(dto), cancellationToken);
         }
 
-        private async Task<IActionResult> CreateGuarded(SavingContribution entity)
+        private async Task<IActionResult> CreateGuarded(SavingContribution entity, CancellationToken cancellationToken)
         {
-            await using var transaction = await _unitOfWork.BeginTransactionAsync();
+            await using var transaction = await _unitOfWork.BeginTransactionAsync(cancellationToken);
 
-            var (Success, ErrorMessage) = await _savingGoalServices.UpdateSavingGoalAmount(entity.GoalId, entity.Amount);
+            var (Success, ErrorMessage) = await _savingGoalServices.UpdateSavingGoalAmount(entity.GoalId, entity.Amount, cancellationToken);
 
             if (!Success)
                 return BadRequest(ErrorMessage);
 
-            await _repository.AddAsync(entity);
+            await _repository.AddAsync(entity, cancellationToken);
 
-            await _unitOfWork.SaveAsync();
-            await transaction.CommitAsync();
+            await _unitOfWork.SaveAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
 
             return CreatedAtAction(nameof(Get), new { id = entity.Id }, ToDto(entity));
         }
 
         [HttpPut("{id:guid}")]
-        public override async Task<IActionResult> Update(Guid id, [FromBody] SavingContributionDTO dto)
+        public override async Task<IActionResult> Update(Guid id, [FromBody] SavingContributionDTO dto, CancellationToken cancellationToken)
         {
-            var entity = await _repository.GetUserDataByIdAsync(id);
+            var entity = await _repository.GetUserDataByIdAsync(id, cancellationToken);
             if (entity == null) return NotFound();
 
             var oldAmount = entity.Amount;
@@ -77,45 +82,45 @@ namespace ExpenseTracker.API.Controllers
 
             ApplyUpdates(entity, dto);
 
-            await using var transaction = await _unitOfWork.BeginTransactionAsync();
+            await using var transaction = await _unitOfWork.BeginTransactionAsync(cancellationToken);
 
             if (entity.GoalId != oldGoalId)
             {
-                var reverse = await _savingGoalServices.UpdateSavingGoalAmount(oldGoalId, -oldAmount);
+                var reverse = await _savingGoalServices.UpdateSavingGoalAmount(oldGoalId, -oldAmount, cancellationToken);
                 if (!reverse.Success) return BadRequest(reverse.ErrorMessage);
 
-                var apply = await _savingGoalServices.UpdateSavingGoalAmount(entity.GoalId, entity.Amount);
+                var apply = await _savingGoalServices.UpdateSavingGoalAmount(entity.GoalId, entity.Amount, cancellationToken);
                 if (!apply.Success) return BadRequest(apply.ErrorMessage);
             }
             else
             {
-                var adjust = await _savingGoalServices.UpdateSavingGoalAmount(entity.GoalId, entity.Amount - oldAmount);
+                var adjust = await _savingGoalServices.UpdateSavingGoalAmount(entity.GoalId, entity.Amount - oldAmount, cancellationToken);
                 if (!adjust.Success) return BadRequest(adjust.ErrorMessage);
             }
 
             _repository.UpdateUserData(entity);
 
-            await _unitOfWork.SaveAsync();
-            await transaction.CommitAsync();
+            await _unitOfWork.SaveAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
 
             return NoContent();
         }
 
         [HttpDelete("{id:guid}")]
-        public override async Task<IActionResult> Delete(Guid id)
+        public override async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
         {
-            var entity = await _repository.GetUserDataByIdAsync(id);
+            var entity = await _repository.GetUserDataByIdAsync(id, cancellationToken);
             if (entity == null) return NotFound();
 
-            await using var transaction = await _unitOfWork.BeginTransactionAsync();
+            await using var transaction = await _unitOfWork.BeginTransactionAsync(cancellationToken);
 
-            var reverse = await _savingGoalServices.UpdateSavingGoalAmount(entity.GoalId, -entity.Amount);
+            var reverse = await _savingGoalServices.UpdateSavingGoalAmount(entity.GoalId, -entity.Amount, cancellationToken);
             if (!reverse.Success) return BadRequest(reverse.ErrorMessage);
 
             _repository.DeleteUserData(entity);
 
-            await _unitOfWork.SaveAsync();
-            await transaction.CommitAsync();
+            await _unitOfWork.SaveAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
 
             return NoContent();
         }

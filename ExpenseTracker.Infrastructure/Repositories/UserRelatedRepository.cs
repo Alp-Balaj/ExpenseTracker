@@ -1,4 +1,4 @@
-﻿using ExpenseTracker.Application.Interfaces;
+using ExpenseTracker.Application.Interfaces;
 using ExpenseTracker.Domain.Entities.Common;
 using ExpenseTracker.Domain.Interfaces;
 using ExpenseTracker.Infrastructure.Persistence;
@@ -22,16 +22,54 @@ namespace ExpenseTracker.Infrastructure.Repositories
         private string _UserId =>
             _user.UserId;
 
-        public async Task<IEnumerable<T>> GetAllUserDataAsync() =>
-            await _dbSet.Where(e => e.UserId == _UserId).ToListAsync();
+        // Reads never enter the change tracker: a list request used to leave one
+        // tracked entity per row behind, which costs a snapshot per row and makes
+        // every later SaveChanges in the request walk them all.
+        private IQueryable<T> UserRows() =>
+            _dbSet.AsNoTracking().Where(e => e.UserId == _UserId);
 
-        public async Task<T?> GetUserDataByIdAsync(Guid id) =>
-            await _dbSet.Where(e => e.UserId == _UserId).FirstOrDefaultAsync(e => e.Id == id);
+        public async Task<IEnumerable<T>> GetAllUserDataAsync(CancellationToken cancellationToken = default) =>
+            await UserRows().ToListAsync(cancellationToken);
 
-        public async Task AddAsync(T entity)
+        public async Task<(IReadOnlyList<T> Items, int TotalCount)> GetUserDataPageAsync(
+            int? skip,
+            int? take,
+            Func<IQueryable<T>, IOrderedQueryable<T>>? orderBy = null,
+            CancellationToken cancellationToken = default)
+        {
+            var rows = UserRows();
+
+            IQueryable<T> ordered = orderBy is null
+                ? rows.OrderByDescending(e => e.CreatedAt).ThenBy(e => e.Id)
+                : orderBy(rows);
+
+            // Unwindowed: the list we are about to materialise *is* the total, so
+            // the extra COUNT query only happens for callers that actually page.
+            if (skip is null && take is null)
+            {
+                var all = await ordered.ToListAsync(cancellationToken);
+                return (all, all.Count);
+            }
+
+            var total = await rows.CountAsync(cancellationToken);
+
+            if (skip is int skipCount and > 0)
+                ordered = ordered.Skip(skipCount);
+
+            if (take is int takeCount)
+                ordered = ordered.Take(takeCount);
+
+            return (await ordered.ToListAsync(cancellationToken), total);
+        }
+
+        public async Task<T?> GetUserDataByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
+            await _dbSet.Where(e => e.UserId == _UserId)
+                        .FirstOrDefaultAsync(e => e.Id == id, cancellationToken);
+
+        public async Task AddAsync(T entity, CancellationToken cancellationToken = default)
         {
             entity.UserId = _UserId;
-            await _dbSet.AddAsync(entity);
+            await _dbSet.AddAsync(entity, cancellationToken);
         }
 
         public void UpdateUserData(T entity)
@@ -47,10 +85,10 @@ namespace ExpenseTracker.Infrastructure.Repositories
                 throw new UnauthorizedAccessException("Cannot delete another user's data.");
             _dbSet.Remove(entity);
         }
+
         public IQueryable<T> Query()
         {
-            return _context.Set<T>()
-                .Where(x => x.UserId == _UserId);
+            return UserRows();
         }
 
         public string GetCurrentUserId()

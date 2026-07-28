@@ -19,20 +19,20 @@ public class UserPreferencesController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> Get()
+    public async Task<IActionResult> Get(CancellationToken cancellationToken)
     {
-        var prefs = await _service.GetAsync();
+        var prefs = await _service.GetAsync(cancellationToken);
         return Ok(prefs);
     }
 
     [HttpPut]
-    public async Task<IActionResult> Update(UpdateUserPreferencesDTO dto)
+    public async Task<IActionResult> Update(UpdateUserPreferencesDTO dto, CancellationToken cancellationToken)
     {
         await _service.UpdateAsync(new UserPreferences
         {
             Theme = dto.Theme,
             BaseCurrency = dto.BaseCurrency
-        });
+        }, cancellationToken);
 
         return NoContent();
     }

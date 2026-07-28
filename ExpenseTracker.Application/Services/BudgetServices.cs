@@ -1,6 +1,7 @@
 using ExpenseTracker.Application.DTOs;
 using ExpenseTracker.Application.Interfaces;
 using ExpenseTracker.Domain.Interfaces;
+using Microsoft.EntityFrameworkCore;
 using System.Globalization;
 
 namespace ExpenseTracker.Application.Services;
@@ -19,42 +20,43 @@ public sealed class BudgetService : IBudgetService
         _conversion = conversion;
     }
 
-    public async Task<IReadOnlyList<BudgetStatusDTO>> GetStatusAsync(int year, int month)
+    public async Task<IReadOnlyList<BudgetStatusDTO>> GetStatusAsync(int year, int month, CancellationToken cancellationToken = default)
     {
-        var budgets = (await _unitOfWork.Budgets.GetAllUserDataAsync()).ToList();
+        var budgets = (await _unitOfWork.Budgets.GetAllUserDataAsync(cancellationToken)).ToList();
         if (budgets.Count == 0) return [];
 
         var monthLabel = $"{year:D4}-{month:D2}";
         var firstDay = new DateOnly(year, month, 1);
         var firstDayOfNextMonth = firstDay.AddMonths(1);
 
-        var expenses = (await _unitOfWork.Expenses.GetAllUserDataAsync())
-            .Where(e => e.Date >= firstDay && e.Date < firstDayOfNextMonth)
-            .ToList();
-
         // An expense carries its account's currency; budgets are always in the
         // user's base currency, so spend has to be converted before comparison.
-        var accounts = await _unitOfWork.Accounts.GetAllUserDataAsync();
-        var currencies = await _unitOfWork.Currencies.GetAllUserDataAsync();
+        // The month filter and the currency join both run in SQL — this used to
+        // pull every expense the user ever recorded to measure one month.
+        var monthSpend = await _unitOfWork.Expenses.Query()
+            .Where(e => e.Date >= firstDay && e.Date < firstDayOfNextMonth)
+            .GroupBy(e => new { e.CategoryId, Code = e.Account.Currency.Code })
+            .Select(g => new
+            {
+                g.Key.CategoryId,
+                g.Key.Code,
+                Total = g.Sum(e => e.Amount)
+            })
+            .ToListAsync(cancellationToken);
 
-        var codeByCurrencyId = currencies.ToDictionary(c => c.Id, c => c.Code);
-        var codeByAccountId = accounts.ToDictionary(
-            a => a.Id,
-            a => codeByCurrencyId.GetValueOrDefault(a.CurrencyId));
-
-        var categories = (await _unitOfWork.Categories.GetAllUserDataAsync())
+        var categories = (await _unitOfWork.Categories.GetAllUserDataAsync(cancellationToken))
             .ToDictionary(c => c.Id);
 
-        var amountsByCategoryId = expenses
+        var amountsByCategoryId = monthSpend
             .ToLookup(
-                e => e.CategoryId,
-                e => new CurrencyAmount(codeByAccountId.GetValueOrDefault(e.AccountId), e.Amount));
+                row => row.CategoryId,
+                row => new CurrencyAmount(row.Code, row.Total));
 
-        var allAmounts = expenses
-            .Select(e => new CurrencyAmount(codeByAccountId.GetValueOrDefault(e.AccountId), e.Amount))
+        var allAmounts = monthSpend
+            .Select(row => new CurrencyAmount(row.Code, row.Total))
             .ToList();
 
-        var converter = await _conversion.GetConverterAsync();
+        var converter = await _conversion.GetConverterAsync(cancellationToken);
 
         var statuses = new List<BudgetStatusDTO>(budgets.Count);
 

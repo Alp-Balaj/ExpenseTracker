@@ -2,7 +2,7 @@ namespace ExpenseTracker.Domain.Interfaces
 {
     public interface IUnitOfWorkTransaction : IAsyncDisposable
     {
-        Task CommitAsync();
-        Task RollbackAsync();
+        Task CommitAsync(CancellationToken cancellationToken = default);
+        Task RollbackAsync(CancellationToken cancellationToken = default);
     }
 }

@@ -27,35 +27,35 @@ namespace ExpenseTracker.API.Controllers
         protected abstract Guid AccountIdOf(TEntity entity);
 
         [HttpPost]
-        public override async Task<IActionResult> Create([FromBody] TDto dto)
+        public override async Task<IActionResult> Create([FromBody] TDto dto, CancellationToken cancellationToken)
         {
-            var referenceError = await ValidateReferencesAsync(dto);
+            var referenceError = await ValidateReferencesAsync(dto, cancellationToken);
             if (referenceError != null) return BadRequest(referenceError);
 
             var entity = ToEntity(dto);
 
-            await using var transaction = await _unitOfWork.BeginTransactionAsync();
+            await using var transaction = await _unitOfWork.BeginTransactionAsync(cancellationToken);
 
-            var (Success, ErrorMessage) = await _accountServices.AdjustAccountBalance(BalanceSign * AmountOf(entity), AccountIdOf(entity));
+            var (Success, ErrorMessage) = await _accountServices.AdjustAccountBalance(BalanceSign * AmountOf(entity), AccountIdOf(entity), cancellationToken);
 
             if (!Success)
                 return BadRequest(ErrorMessage);
 
-            await _repository.AddAsync(entity);
+            await _repository.AddAsync(entity, cancellationToken);
 
-            await _unitOfWork.SaveAsync();
-            await transaction.CommitAsync();
+            await _unitOfWork.SaveAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
 
             return CreatedAtAction(nameof(Get), new { id = entity.Id }, ToDto(entity));
         }
 
         [HttpPut("{id:guid}")]
-        public override async Task<IActionResult> Update(Guid id, [FromBody] TDto dto)
+        public override async Task<IActionResult> Update(Guid id, [FromBody] TDto dto, CancellationToken cancellationToken)
         {
-            var entity = await _repository.GetUserDataByIdAsync(id);
+            var entity = await _repository.GetUserDataByIdAsync(id, cancellationToken);
             if (entity == null) return NotFound();
 
-            var referenceError = await ValidateReferencesAsync(dto);
+            var referenceError = await ValidateReferencesAsync(dto, cancellationToken);
             if (referenceError != null) return BadRequest(referenceError);
 
             var oldAmount = AmountOf(entity);
@@ -66,45 +66,45 @@ namespace ExpenseTracker.API.Controllers
             var newAmount = AmountOf(entity);
             var newAccountId = AccountIdOf(entity);
 
-            await using var transaction = await _unitOfWork.BeginTransactionAsync();
+            await using var transaction = await _unitOfWork.BeginTransactionAsync(cancellationToken);
 
             if (newAccountId != oldAccountId)
             {
-                var reverse = await _accountServices.AdjustAccountBalance(-BalanceSign * oldAmount, oldAccountId);
+                var reverse = await _accountServices.AdjustAccountBalance(-BalanceSign * oldAmount, oldAccountId, cancellationToken);
                 if (!reverse.Success) return BadRequest(reverse.ErrorMessage);
 
-                var apply = await _accountServices.AdjustAccountBalance(BalanceSign * newAmount, newAccountId);
+                var apply = await _accountServices.AdjustAccountBalance(BalanceSign * newAmount, newAccountId, cancellationToken);
                 if (!apply.Success) return BadRequest(apply.ErrorMessage);
             }
             else
             {
-                var adjust = await _accountServices.AdjustAccountBalance(BalanceSign * (newAmount - oldAmount), oldAccountId);
+                var adjust = await _accountServices.AdjustAccountBalance(BalanceSign * (newAmount - oldAmount), oldAccountId, cancellationToken);
                 if (!adjust.Success) return BadRequest(adjust.ErrorMessage);
             }
 
             _repository.UpdateUserData(entity);
 
-            await _unitOfWork.SaveAsync();
-            await transaction.CommitAsync();
+            await _unitOfWork.SaveAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
 
             return NoContent();
         }
 
         [HttpDelete("{id:guid}")]
-        public override async Task<IActionResult> Delete(Guid id)
+        public override async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
         {
-            var entity = await _repository.GetUserDataByIdAsync(id);
+            var entity = await _repository.GetUserDataByIdAsync(id, cancellationToken);
             if (entity == null) return NotFound();
 
-            await using var transaction = await _unitOfWork.BeginTransactionAsync();
+            await using var transaction = await _unitOfWork.BeginTransactionAsync(cancellationToken);
 
-            var reverse = await _accountServices.AdjustAccountBalance(-BalanceSign * AmountOf(entity), AccountIdOf(entity));
+            var reverse = await _accountServices.AdjustAccountBalance(-BalanceSign * AmountOf(entity), AccountIdOf(entity), cancellationToken);
             if (!reverse.Success) return BadRequest(reverse.ErrorMessage);
 
             _repository.DeleteUserData(entity);
 
-            await _unitOfWork.SaveAsync();
-            await transaction.CommitAsync();
+            await _unitOfWork.SaveAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
 
             return NoContent();
         }

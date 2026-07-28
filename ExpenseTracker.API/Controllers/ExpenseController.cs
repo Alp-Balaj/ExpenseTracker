@@ -29,11 +29,16 @@ namespace ExpenseTracker.API.Controllers
         protected override decimal AmountOf(Expense entity) => entity.Amount;
         protected override Guid AccountIdOf(Expense entity) => entity.AccountId;
 
+        // Newest spending first, which is both what every list view shows and
+        // what the (UserId, Date) index is ordered for.
+        protected override IOrderedQueryable<Expense> OrderForListing(IQueryable<Expense> query) =>
+            query.OrderByDescending(e => e.Date).ThenByDescending(e => e.CreatedAt).ThenBy(e => e.Id);
+
         // AccountId is already ownership-checked by the user-scoped balance
         // adjustment; CategoryId has no such side effect, so check it here.
-        protected override async Task<string?> ValidateReferencesAsync(ExpenseDTO dto)
+        protected override async Task<string?> ValidateReferencesAsync(ExpenseDTO dto, CancellationToken cancellationToken = default)
         {
-            if (await _categoryRepository.GetUserDataByIdAsync(dto.CategoryId) == null)
+            if (await _categoryRepository.GetUserDataByIdAsync(dto.CategoryId, cancellationToken) == null)
                 return "Category not found";
             return null;
         }

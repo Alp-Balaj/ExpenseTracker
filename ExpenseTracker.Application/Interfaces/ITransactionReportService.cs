@@ -4,6 +4,6 @@ namespace ExpenseTracker.Application.Interfaces
 {
     public interface ITransactionReportService
     {
-        Task<TransactionReportResult> GenerateAsync(TransactionReportRequest request);
+        Task<TransactionReportResult> GenerateAsync(TransactionReportRequest request, CancellationToken cancellationToken = default);
     }
 }

@@ -16,7 +16,7 @@ namespace ExpenseTracker.Infrastructure.Services
             _uow = uow;
             _conversion = conversion;
         }
-        public async Task<TransactionReportResult> GenerateAsync(TransactionReportRequest request)
+        public async Task<TransactionReportResult> GenerateAsync(TransactionReportRequest request, CancellationToken cancellationToken = default)
         {
             Validate(request);
 
@@ -48,7 +48,7 @@ namespace ExpenseTracker.Infrastructure.Services
                         Amount = -x.Amount,
                         Currency = x.Account.Currency.Code
                     })
-                    .ToListAsync();
+                    .ToListAsync(cancellationToken);
 
                 rows.AddRange(expenseRows);
             }
@@ -74,14 +74,14 @@ namespace ExpenseTracker.Infrastructure.Services
                         Amount = x.Amount,
                         Currency = x.Account.Currency.Code
                     })
-                    .ToListAsync();
+                    .ToListAsync(cancellationToken);
 
                 rows.AddRange(incomeRows);
             }
 
             rows = rows.OrderBy(r => r.Date).ToList();
 
-            var converter = await _conversion.GetConverterAsync();
+            var converter = await _conversion.GetConverterAsync(cancellationToken);
             var breakdown = converter.Summarize(
                 rows.Select(r => new CurrencyAmount(r.Currency, r.Amount)));
 
