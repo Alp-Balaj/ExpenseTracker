@@ -67,6 +67,13 @@ public sealed class CustomWebApplicationFactory : WebApplicationFactory<Program>
     public StubExchangeRateProvider RateProvider { get; } = new();
 
     /// <summary>
+    /// Stream C: the fake outbox behind forgot-password / send-confirmation-email.
+    /// Read a token back out of <see cref="CapturingEmailSender.Sent"/> to complete
+    /// a reset or confirmation round-trip without a mailbox.
+    /// </summary>
+    public CapturingEmailSender EmailSender { get; } = new();
+
+    /// <summary>
     /// Counts the SQL commands each request sends. Tests in this collection run
     /// one at a time, so a test may <see cref="QueryCountingInterceptor.Reset"/>
     /// it, drive one request, and read the count back.
@@ -91,6 +98,10 @@ public sealed class CustomWebApplicationFactory : WebApplicationFactory<Program>
             // runs after the app's own registrations, so this wins.
             services.RemoveAll<IExchangeRateProvider>();
             services.AddSingleton<IExchangeRateProvider>(RateProvider);
+
+            // Same pattern for outbound email: capture instead of log.
+            services.RemoveAll<IEmailSender>();
+            services.AddSingleton<IEmailSender>(EmailSender);
 
             // Re-register the context purely to attach the query counter:
             // command interceptors are not among the kinds EF discovers from

@@ -41,10 +41,12 @@ public sealed class ExchangeRateRefreshTests
         return await response.Content.ReadFromJsonAsync<JsonElement>();
     }
 
-    private static JsonElement CurrencyByCode(JsonElement payload, string code) =>
+    // By id, not code: signup seeds a starter EUR/USD/GBP set (Stream C), so a
+    // code is no longer unique within a user's currency list.
+    private static JsonElement CurrencyById(JsonElement payload, Guid id) =>
         payload.GetProperty("currencies")
             .EnumerateArray()
-            .Single(c => c.GetProperty("code").GetString() == code);
+            .Single(c => c.GetProperty("id").GetGuid() == id);
 
     [Fact]
     public async Task Refresh_stores_the_rate_in_the_amount_times_rate_direction()
@@ -52,11 +54,11 @@ public sealed class ExchangeRateRefreshTests
         var client = await ApiClient.CreateAuthenticatedClientAsync(_factory);
         await SetBaseCurrencyAsync(client, "EUR");
         // Deliberately nonsense to prove the value really is overwritten.
-        await ApiClient.CreateCurrencyAsync(client, "USD", rate: 5m);
+        var usdId = await ApiClient.CreateCurrencyAsync(client, "USD", rate: 5m);
 
         var payload = await RefreshAsync(client);
 
-        var usd = CurrencyByCode(payload, "USD");
+        var usd = CurrencyById(payload, usdId);
         Assert.Equal(0.878040m, usd.GetProperty("exchangeRateToBase").GetDecimal());
         Assert.Equal("2026-07-27", payload.GetProperty("ratesAsOf").GetString());
         Assert.False(payload.GetProperty("providerUnavailable").GetBoolean());
@@ -67,12 +69,12 @@ public sealed class ExchangeRateRefreshTests
     {
         var client = await ApiClient.CreateAuthenticatedClientAsync(_factory);
         await SetBaseCurrencyAsync(client, "EUR");
-        await ApiClient.CreateCurrencyAsync(client, "GBP", rate: 1m);
+        var gbpId = await ApiClient.CreateCurrencyAsync(client, "GBP", rate: 1m);
 
         var before = DateTime.UtcNow.AddSeconds(-5);
         var payload = await RefreshAsync(client);
 
-        var stamped = CurrencyByCode(payload, "GBP").GetProperty("rateUpdatedAtUtc").GetDateTime();
+        var stamped = CurrencyById(payload, gbpId).GetProperty("rateUpdatedAtUtc").GetDateTime();
         Assert.InRange(stamped, before, DateTime.UtcNow.AddSeconds(5));
     }
 
@@ -82,11 +84,11 @@ public sealed class ExchangeRateRefreshTests
         var client = await ApiClient.CreateAuthenticatedClientAsync(_factory);
         await SetBaseCurrencyAsync(client, "EUR");
         // A base currency at anything but 1 silently scales every total in the app.
-        await ApiClient.CreateCurrencyAsync(client, "EUR", rate: 0.5m);
+        var eurId = await ApiClient.CreateCurrencyAsync(client, "EUR", rate: 0.5m);
 
         var payload = await RefreshAsync(client);
 
-        Assert.Equal(1m, CurrencyByCode(payload, "EUR").GetProperty("exchangeRateToBase").GetDecimal());
+        Assert.Equal(1m, CurrencyById(payload, eurId).GetProperty("exchangeRateToBase").GetDecimal());
     }
 
     [Fact]
@@ -96,11 +98,11 @@ public sealed class ExchangeRateRefreshTests
         await SetBaseCurrencyAsync(client, "EUR");
         // The ECB set is ~30 currencies; ALL (Albanian lek) is not one of them, so the
         // hand-entered rate is the only rate there will ever be for it.
-        await ApiClient.CreateCurrencyAsync(client, "ALL", rate: 0.010200m);
+        var allId = await ApiClient.CreateCurrencyAsync(client, "ALL", rate: 0.010200m);
 
         var payload = await RefreshAsync(client);
 
-        Assert.Equal(0.010200m, CurrencyByCode(payload, "ALL").GetProperty("exchangeRateToBase").GetDecimal());
+        Assert.Equal(0.010200m, CurrencyById(payload, allId).GetProperty("exchangeRateToBase").GetDecimal());
         Assert.Contains(
             "ALL",
             payload.GetProperty("unsupportedCodes").EnumerateArray().Select(c => c.GetString()));
@@ -113,14 +115,14 @@ public sealed class ExchangeRateRefreshTests
         // The stub publishes nothing against ALL, mirroring frankfurter's 404 for a
         // base currency it does not cover.
         await SetBaseCurrencyAsync(client, "ALL");
-        await ApiClient.CreateCurrencyAsync(client, "USD", rate: 98.5m);
+        var usdId = await ApiClient.CreateCurrencyAsync(client, "USD", rate: 98.5m);
 
         var payload = await RefreshAsync(client);
 
         Assert.True(payload.GetProperty("providerUnavailable").GetBoolean());
         // The whole point of the fallback: a dead upstream must never blank or zero a
         // rate, only leave yesterday's in place.
-        Assert.Equal(98.5m, CurrencyByCode(payload, "USD").GetProperty("exchangeRateToBase").GetDecimal());
+        Assert.Equal(98.5m, CurrencyById(payload, usdId).GetProperty("exchangeRateToBase").GetDecimal());
     }
 
     [Fact]
@@ -128,7 +130,7 @@ public sealed class ExchangeRateRefreshTests
     {
         var client = await ApiClient.CreateAuthenticatedClientAsync(_factory);
         await SetBaseCurrencyAsync(client, "SEK");
-        await ApiClient.CreateCurrencyAsync(client, "USD", rate: 9.4m);
+        var usdId = await ApiClient.CreateCurrencyAsync(client, "USD", rate: 9.4m);
 
         // An upstream that starts publishing zeros must not be believed.
         _factory.RateProvider.Snapshots["SEK"] = new ExchangeRateSnapshot(
@@ -139,7 +141,7 @@ public sealed class ExchangeRateRefreshTests
         try
         {
             var payload = await RefreshAsync(client);
-            Assert.Equal(9.4m, CurrencyByCode(payload, "USD").GetProperty("exchangeRateToBase").GetDecimal());
+            Assert.Equal(9.4m, CurrencyById(payload, usdId).GetProperty("exchangeRateToBase").GetDecimal());
         }
         finally
         {
@@ -155,14 +157,14 @@ public sealed class ExchangeRateRefreshTests
         await SetBaseCurrencyAsync(alice, "EUR");
         await SetBaseCurrencyAsync(bob, "EUR");
         await ApiClient.CreateCurrencyAsync(alice, "USD", rate: 5m);
-        await ApiClient.CreateCurrencyAsync(bob, "USD", rate: 7m);
+        var bobsUsdId = await ApiClient.CreateCurrencyAsync(bob, "USD", rate: 7m);
 
         await RefreshAsync(alice);
 
         // The updater bypasses the user-scoped repository, so its own UserId filter is
         // the only thing standing between one user's refresh and another's data.
         var bobsCurrencies = await bob.GetFromJsonAsync<JsonElement>("/api/Currency");
-        var bobsUsd = bobsCurrencies.EnumerateArray().Single(c => c.GetProperty("code").GetString() == "USD");
+        var bobsUsd = bobsCurrencies.EnumerateArray().Single(c => c.GetProperty("id").GetGuid() == bobsUsdId);
         Assert.Equal(7m, bobsUsd.GetProperty("exchangeRateToBase").GetDecimal());
     }
 

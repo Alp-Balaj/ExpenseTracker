@@ -172,7 +172,13 @@ public sealed class CategorySummaryTests
 
         var intruder = await ApiClient.CreateAuthenticatedClientAsync(_factory);
 
-        Assert.Empty((await GetSummariesAsync(intruder)).EnumerateArray());
+        // The intruder owns categories too now (signup seeds a starter set —
+        // Stream C), so "empty list" is no longer the invariant. What must hold:
+        // none of the owner's categories appear, and no seeded summary carries a
+        // cent of the owner's 500.
+        var summaries = (await GetSummariesAsync(intruder)).EnumerateArray().ToList();
+        Assert.DoesNotContain(summaries, s => s.GetProperty("id").GetGuid() == ownerCategory);
+        Assert.All(summaries, s => Assert.Equal(0m, s.GetProperty("totalAmount").GetDecimal()));
     }
 
     private static async Task PostExpenseAsync(
