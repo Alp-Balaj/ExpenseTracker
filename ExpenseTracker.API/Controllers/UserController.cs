@@ -490,6 +490,67 @@ namespace ExpenseTracker.API.Controllers
             return Ok(new { Token = token });
         }
 
+        /// <summary>
+        /// C·4: deletes this account and everything it owns, irreversibly.
+        /// <para>
+        /// The blast radius stops at the account boundary and that is asserted by
+        /// <c>AccountDeletionTests</c>, not merely intended: every user-owned table
+        /// carries a cascading foreign key to <c>AspNetUsers</c>
+        /// (<c>ApplicationDbContext.ConfigureUserOwnership</c>), so one DELETE takes
+        /// exactly this user's rows and cannot reach anyone else's.
+        /// </para>
+        /// <para>
+        /// Guarded by the current password rather than by a confirmation dialog
+        /// alone. A dialog protects against a misclick; a password protects against
+        /// someone else's hands on an unlocked laptop, which is the case that
+        /// actually loses years of financial history. Rate-limited on the auth lane
+        /// so it cannot be used to test passwords.
+        /// </para>
+        /// </summary>
+        [Authorize]
+        [HttpPost("delete-account")]
+        [EnableRateLimiting("auth")]
+        public async Task<IActionResult> DeleteAccount([FromBody] DeleteAccountDto model)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized();
+
+            var user = await _userManager.FindByIdAsync(userId);
+            if (user == null)
+                return Unauthorized();
+
+            if (!await _userManager.CheckPasswordAsync(user, model.Password))
+            {
+                _logger.LogWarning("Account deletion refused for user {UserId}: wrong password", user.Id);
+                return BadRequest(new { message = "That password is not correct." });
+            }
+
+            // Refresh tokens first: if the delete somehow fails, the session is
+            // already dead rather than left half-way, and the tokens are the one
+            // thing that would still work afterwards.
+            await _refreshTokenRepository.RevokeAllActiveForUserAsync(user.Id);
+            await _refreshTokenRepository.SaveAsync();
+
+            var result = await _userManager.DeleteAsync(user);
+            if (!result.Succeeded)
+            {
+                _logger.LogError("Account deletion failed for user {UserId}: {Errors}", user.Id,
+                    string.Join("; ", result.Errors.Select(e => e.Code)));
+
+                return BadRequest(new
+                {
+                    message = "The account could not be deleted.",
+                    errors = result.Errors.Select(e => e.Description).ToArray()
+                });
+            }
+
+            ClearRefreshCookie();
+            _logger.LogInformation("Account {UserId} deleted at the owner's request", userId);
+
+            return Ok(new { message = "Account deleted." });
+        }
+
         #endregion
         #region Helper functions
         private string GenerateJwtToken(User user)
@@ -600,5 +661,13 @@ namespace ExpenseTracker.API.Controllers
     public record ConfirmEmailDto(
         [Required, EmailAddress] string Email,
         [Required] string Token);
+
+    /// <summary>
+    /// C·4. The password is the guard; there is deliberately nothing else to
+    /// supply, because a second "type DELETE to confirm" field is theatre next to
+    /// a credential the person deleting has to actually know.
+    /// </summary>
+    public record DeleteAccountDto(
+        [Required] string Password);
 }
     
