@@ -18,6 +18,8 @@ namespace ExpenseTracker.Application.DependencyInjection
             // Shared by TransferController and by committing a planned transfer,
             // so the two can never drift apart on how a transfer is booked.
             services.AddScoped<ITransferPostingService, TransferPostingService>();
+            services.AddScoped<IInsightsService, InsightsService>();
+            services.AddScoped<ICashflowProjectionService, CashflowProjectionService>();
 
             return services;
         }
