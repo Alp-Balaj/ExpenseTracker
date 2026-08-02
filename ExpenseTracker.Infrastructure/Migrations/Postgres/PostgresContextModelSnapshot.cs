@@ -281,6 +281,44 @@ namespace ExpenseTracker.Infrastructure.Migrations.Postgres
                     b.ToTable("Incomes");
                 });
 
+            modelBuilder.Entity("ExpenseTracker.Domain.Entities.NotificationDelivery", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DedupeKey")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<int>("DeviceCount")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("SentAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "Kind", "DedupeKey")
+                        .IsUnique();
+
+                    b.ToTable("NotificationDeliveries");
+                });
+
             modelBuilder.Entity("ExpenseTracker.Domain.Entities.PlannedOccurrence", b =>
                 {
                     b.Property<Guid>("Id")
@@ -410,6 +448,60 @@ namespace ExpenseTracker.Infrastructure.Migrations.Postgres
                     b.ToTable("PlannedTransactions");
                 });
 
+            modelBuilder.Entity("ExpenseTracker.Domain.Entities.PushSubscription", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Auth")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Endpoint")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<int>("FailureCount")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("LastFailureAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("LastSuccessAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("P256dh")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UserAgent")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Endpoint")
+                        .IsUnique();
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("PushSubscriptions");
+                });
+
             modelBuilder.Entity("ExpenseTracker.Domain.Entities.SavingContribution", b =>
                 {
                     b.Property<Guid>("Id")
@@ -500,6 +592,33 @@ namespace ExpenseTracker.Infrastructure.Migrations.Postgres
                     b.HasIndex("UserId");
 
                     b.ToTable("SavingGoals");
+                });
+
+            modelBuilder.Entity("ExpenseTracker.Domain.Entities.ScheduledJobRun", b =>
+                {
+                    b.Property<string>("JobName")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTime?>("ClaimedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("ConsecutiveFailures")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("LastResult")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<DateTime?>("LastRunAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("LastSucceededAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("JobName");
+
+                    b.ToTable("ScheduledJobRuns");
                 });
 
             modelBuilder.Entity("ExpenseTracker.Domain.Entities.Transfer", b =>
@@ -935,6 +1054,15 @@ namespace ExpenseTracker.Infrastructure.Migrations.Postgres
                     b.Navigation("Category");
                 });
 
+            modelBuilder.Entity("ExpenseTracker.Domain.Entities.NotificationDelivery", b =>
+                {
+                    b.HasOne("ExpenseTracker.Domain.Entities.User.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("ExpenseTracker.Domain.Entities.PlannedOccurrence", b =>
                 {
                     b.HasOne("ExpenseTracker.Domain.Entities.Expense", "Expense")
@@ -1008,6 +1136,15 @@ namespace ExpenseTracker.Infrastructure.Migrations.Postgres
                     b.Navigation("SavingGoal");
 
                     b.Navigation("ToAccount");
+                });
+
+            modelBuilder.Entity("ExpenseTracker.Domain.Entities.PushSubscription", b =>
+                {
+                    b.HasOne("ExpenseTracker.Domain.Entities.User.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("ExpenseTracker.Domain.Entities.SavingContribution", b =>

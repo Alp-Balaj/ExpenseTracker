@@ -20,8 +20,12 @@ namespace ExpenseTracker.Infrastructure.Persistence
         public DbSet<Currency> Currencies { get; set; }
         public DbSet<Expense> Expenses { get; set; }
         public DbSet<Income> Incomes { get; set; }
+        public DbSet<NotificationDelivery> NotificationDeliveries { get; set; }
         public DbSet<PlannedTransaction> PlannedTransactions { get; set; }
         public DbSet<PlannedOccurrence> PlannedOccurrences { get; set; }
+        public DbSet<PushSubscription> PushSubscriptions { get; set; }
+        // Stream P: the deployment's own bookkeeping, not a user's — see ScheduledJobRun.
+        public DbSet<ScheduledJobRun> ScheduledJobRuns { get; set; }
         public DbSet<SavingGoal> SavingGoals { get; set; }
         public DbSet<SavingContribution> SavingContributions { get; set; }
         public DbSet<Transfer> Transfers { get; set; }

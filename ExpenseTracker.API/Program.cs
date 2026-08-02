@@ -32,10 +32,14 @@ builder.Services.AddApplicationServices();
 builder.Services.AddCustomSwagger();
 //Cors configuration
 builder.Services.AddReactCors(builder.Configuration);
-//Sugg-8: refreshes every user's exchange rates on startup and daily thereafter.
-//Self-disables when ExchangeRates:Enabled is false (the test suite sets that), so it
-//is registered unconditionally and decides for itself whether to do any work.
-builder.Services.AddHostedService<ExchangeRateRefreshService>();
+//Stream P: the one background host. Ticks, asks every registered IScheduledJob
+//whether it is due against a persisted last-success timestamp, and runs the ones
+//that are — catch-up by design, because Railway's single container is free to
+//sleep and every deploy replaces it. Absorbed Sugg-8's ExchangeRateRefreshService,
+//which is now ScheduledJobNames.ExchangeRates and still honours ExchangeRates:Enabled.
+//Self-disables when Scheduler:Enabled is false (the test suite sets that), so it is
+//registered unconditionally and decides for itself whether to do any work.
+builder.Services.AddHostedService<SchedulerHostedService>();
 //Global exception -> ProblemDetails mapping (400/404/409/500)
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();

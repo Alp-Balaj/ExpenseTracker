@@ -58,6 +58,10 @@ public sealed class CustomWebApplicationFactory : WebApplicationFactory<Program>
         // refresh endpoint is unaffected and is what the rate tests drive, through
         // the stub provider registered below — no test may depend on the network.
         Environment.SetEnvironmentVariable("ExchangeRates__Enabled", "false");
+        // Stream P: same reasoning for the background scheduler. Tests claim jobs
+        // and run them explicitly (SchedulerTests, NotificationJobTests) so the
+        // assertions are deterministic; a live timer would race every one of them.
+        Environment.SetEnvironmentVariable("Scheduler__Enabled", "false");
     }
 
     /// <summary>
@@ -72,6 +76,13 @@ public sealed class CustomWebApplicationFactory : WebApplicationFactory<Program>
     /// a reset or confirmation round-trip without a mailbox.
     /// </summary>
     public CapturingEmailSender EmailSender { get; } = new();
+
+    /// <summary>
+    /// Stream P: the fake push service. Read <see cref="CapturingPushSender.Messages"/>
+    /// back to assert what a notification job decided to say, and set
+    /// <see cref="CapturingPushSender.NextOutcome"/> to model an expired endpoint.
+    /// </summary>
+    public CapturingPushSender PushSender { get; } = new();
 
     /// <summary>
     /// Counts the SQL commands each request sends. Tests in this collection run
@@ -102,6 +113,10 @@ public sealed class CustomWebApplicationFactory : WebApplicationFactory<Program>
             // Same pattern for outbound email: capture instead of log.
             services.RemoveAll<IEmailSender>();
             services.AddSingleton<IEmailSender>(EmailSender);
+
+            // And for Web Push: capture instead of POSTing to fcm/apple/mozilla.
+            services.RemoveAll<IPushSender>();
+            services.AddSingleton<IPushSender>(PushSender);
 
             // Re-register the context purely to attach the query counter:
             // command interceptors are not among the kinds EF discovers from
