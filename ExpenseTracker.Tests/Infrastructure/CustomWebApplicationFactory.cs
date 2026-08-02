@@ -50,6 +50,10 @@ public sealed class CustomWebApplicationFactory : WebApplicationFactory<Program>
         // the production default (10/min) would throttle the suite itself (Fix-13).
         Environment.SetEnvironmentVariable("RateLimiting__Auth__PermitLimit", "100000");
         Environment.SetEnvironmentVariable("RateLimiting__Auth__WindowSeconds", "60");
+        // Stream H: the global per-user limiter has the same loopback problem —
+        // anonymous requests (signup/login) all share one IP partition under test.
+        Environment.SetEnvironmentVariable("RateLimiting__Global__PermitLimit", "1000000");
+        Environment.SetEnvironmentVariable("RateLimiting__Global__WindowSeconds", "60");
         // Sugg-8: keep the daily rate sweep from starting under test. The manual
         // refresh endpoint is unaffected and is what the rate tests drive, through
         // the stub provider registered below — no test may depend on the network.
