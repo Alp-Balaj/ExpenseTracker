@@ -59,6 +59,23 @@ public static class DependencyInjection
         services.AddScoped<IExchangeRateProvider, FrankfurterExchangeRateProvider>();
         services.AddScoped<IExchangeRateUpdater, ExchangeRateUpdater>();
 
+        // Stream C: signup seeds a starter catalogue for the new user; standalone so
+        // demo-data fabrication can reuse it for any user id.
+        services.AddScoped<IUserDataSeeder, UserDataSeeder>();
+
+        // Stream C: outbound email. "Logging" (the default) sends nothing and writes
+        // the message — links included — to the log. A real provider (decision D1)
+        // slots in as another case behind the same config key, so switching is a
+        // Railway env var (Email__Provider), not a code change at call sites.
+        var emailProvider = configuration["Email:Provider"] ?? "Logging";
+        switch (emailProvider)
+        {
+            case "Logging":
+            default:
+                services.AddScoped<IEmailSender, LoggingEmailSender>();
+                break;
+        }
+
         return services;
     }
 }

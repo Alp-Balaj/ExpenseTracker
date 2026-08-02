@@ -1,4 +1,5 @@
-﻿using ExpenseTracker.Application.Validation;
+﻿using ExpenseTracker.Application.Interfaces;
+using ExpenseTracker.Application.Validation;
 using ExpenseTracker.Domain.Entities.User;
 using ExpenseTracker.Domain.Interfaces;
 using ExpenseTracker.Infrastructure.Security;
@@ -20,18 +21,28 @@ namespace ExpenseTracker.API.Controllers
     [Route("api/[controller]")]
     public class UserController : ControllerBase
     {
+        /// <summary>Signup collects no base currency, so every new user starts on EUR
+        /// (the same default UserPreferences.BaseCurrency has always had).</summary>
+        private const string DefaultBaseCurrency = "EUR";
+
         private readonly UserManager<User> _userManager;
         private readonly SignInManager<User> _signInManager;
         private readonly IConfiguration _configuration;
         private readonly IRefreshTokenRepository _refreshTokenRepository;
+        private readonly IUnitOfWork _unitOfWork;
+        private readonly IUserDataSeeder _seeder;
+        private readonly IEmailSender _emailSender;
         private readonly ILogger<UserController> _logger;
 
-        public UserController(UserManager<User> userManager, SignInManager<User> signInManager, IConfiguration configuration, IRefreshTokenRepository refreshTokenRepository, ILogger<UserController> logger)
+        public UserController(UserManager<User> userManager, SignInManager<User> signInManager, IConfiguration configuration, IRefreshTokenRepository refreshTokenRepository, IUnitOfWork unitOfWork, IUserDataSeeder seeder, IEmailSender emailSender, ILogger<UserController> logger)
         {
             _userManager = userManager;
             _signInManager = signInManager;
             _configuration = configuration;
             _refreshTokenRepository = refreshTokenRepository;
+            _unitOfWork = unitOfWork;
+            _seeder = seeder;
+            _emailSender = emailSender;
             _logger = logger;
         }
 
@@ -68,6 +79,11 @@ namespace ExpenseTracker.API.Controllers
                 }
             }
 
+            // User creation and the starter-catalogue seed commit together: a failed
+            // seed must not leave an account with no currencies/categories behind,
+            // and a failed creation must not leave orphan catalogue rows.
+            await using var transaction = await _unitOfWork.BeginTransactionAsync();
+
             var result = await _userManager.CreateAsync(user, model.Password);
             if (!result.Succeeded)
             {
@@ -87,6 +103,9 @@ namespace ExpenseTracker.API.Controllers
                     errors = new { password = passwordErrors }
                 });
             }
+
+            await _seeder.SeedNewUserAsync(user.Id, DefaultBaseCurrency);
+            await transaction.CommitAsync();
 
             return Ok("User registered successfully");
         }
@@ -276,6 +295,167 @@ namespace ExpenseTracker.API.Controllers
             return Ok(new { message = "Password changed successfully" });
         }
 
+        /// <summary>
+        /// Starts a password reset. Always 200 with the same body whether or not the
+        /// email exists — anything else is an account-enumeration oracle. The reset
+        /// link points at the SPA's /reset-password route with email + token in the
+        /// query string; the sender behind IEmailSender decides how it travels.
+        /// </summary>
+        [HttpPost("forgot-password")]
+        [EnableRateLimiting("auth")]
+        public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordDto model)
+        {
+            var user = await _userManager.FindByEmailAsync(model.Email);
+            if (user?.Email != null)
+            {
+                var token = await _userManager.GeneratePasswordResetTokenAsync(user);
+                var link = BuildSpaLink("/reset-password", user.Email, token);
+
+                await _emailSender.SendAsync(new EmailMessage(
+                    user.Email,
+                    "Reset your ExpenseTracker password",
+                    $"Someone (hopefully you) asked to reset your ExpenseTracker password.\n\n" +
+                    $"Open this link to choose a new one:\n{link}\n\n" +
+                    "If this wasn't you, ignore this email — your password is unchanged."));
+
+                _logger.LogInformation("Password reset email queued for user {UserId}", user.Id);
+            }
+
+            return Ok(new { message = "If that email is registered, a reset link has been sent." });
+        }
+
+        /// <summary>
+        /// Completes a password reset with the token from the emailed link. Failures
+        /// are deliberately vague about *why* (unknown email and bad token read the
+        /// same); only password-policy violations are echoed, matching signup.
+        /// </summary>
+        [HttpPost("reset-password")]
+        [EnableRateLimiting("auth")]
+        public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDto model)
+        {
+            var invalid = new { message = "This reset link is invalid or has expired. Request a new one." };
+
+            var user = await _userManager.FindByEmailAsync(model.Email);
+            if (user == null)
+                return BadRequest(invalid);
+
+            var result = await _userManager.ResetPasswordAsync(user, model.Token, model.NewPassword);
+            if (!result.Succeeded)
+            {
+                _logger.LogWarning("Password reset failed for user {UserId}: {Errors}", user.Id,
+                    string.Join("; ", result.Errors.Select(e => e.Code)));
+
+                var passwordErrors = result.Errors
+                    .Where(e => e.Code.StartsWith("Password"))
+                    .Select(e => e.Description)
+                    .ToArray();
+
+                return passwordErrors.Length > 0
+                    ? BadRequest(new { message = "Password does not meet the requirements.", errors = new { password = passwordErrors } })
+                    : BadRequest(invalid);
+            }
+
+            // Same session hygiene as change-password: sessions opened under the old
+            // password (possibly the attacker's reason the user is resetting) die now.
+            await _refreshTokenRepository.RevokeAllActiveForUserAsync(user.Id);
+            await _refreshTokenRepository.SaveAsync();
+
+            _logger.LogInformation("Password reset completed for user {UserId}; all refresh tokens revoked", user.Id);
+
+            return Ok(new { message = "Password has been reset. You can now log in." });
+        }
+
+        /// <summary>
+        /// Emails the signed-in user a confirmation link for their own address.
+        /// Confirmation is recorded and surfaced, never enforced — login stays open
+        /// to unconfirmed accounts (every pre-existing production user is one).
+        /// </summary>
+        [Authorize]
+        [HttpPost("send-confirmation-email")]
+        [EnableRateLimiting("auth")]
+        public async Task<IActionResult> SendConfirmationEmail()
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized();
+
+            var user = await _userManager.FindByIdAsync(userId);
+            if (user?.Email == null)
+                return Unauthorized();
+
+            if (user.EmailConfirmed)
+                return Ok(new { message = "Email is already confirmed.", alreadyConfirmed = true });
+
+            var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
+            var link = BuildSpaLink("/confirm-email", user.Email, token);
+
+            await _emailSender.SendAsync(new EmailMessage(
+                user.Email,
+                "Confirm your ExpenseTracker email",
+                $"Open this link to confirm your email address:\n{link}"));
+
+            _logger.LogInformation("Confirmation email queued for user {UserId}", user.Id);
+
+            return Ok(new { message = "Confirmation email sent.", alreadyConfirmed = false });
+        }
+
+        /// <summary>Records the confirmation from the emailed link. Anonymous — the
+        /// user lands here from their inbox, possibly on a device with no session.</summary>
+        [HttpPost("confirm-email")]
+        [EnableRateLimiting("auth")]
+        public async Task<IActionResult> ConfirmEmail([FromBody] ConfirmEmailDto model)
+        {
+            var invalid = new { message = "This confirmation link is invalid or has expired. Request a new one from your account settings." };
+
+            var user = await _userManager.FindByEmailAsync(model.Email);
+            if (user == null)
+                return BadRequest(invalid);
+
+            // A second click on the same link should read as success, not as a scary
+            // error — the token was consumed by the first one.
+            if (user.EmailConfirmed)
+                return Ok(new { message = "Email is already confirmed." });
+
+            var result = await _userManager.ConfirmEmailAsync(user, model.Token);
+            if (!result.Succeeded)
+            {
+                _logger.LogWarning("Email confirmation failed for user {UserId}: {Errors}", user.Id,
+                    string.Join("; ", result.Errors.Select(e => e.Code)));
+                return BadRequest(invalid);
+            }
+
+            _logger.LogInformation("Email confirmed for user {UserId}", user.Id);
+
+            return Ok(new { message = "Email confirmed." });
+        }
+
+        /// <summary>
+        /// The signed-in user's own account info. Exists because EmailConfirmed
+        /// lives nowhere in the JWT and the SPA needs it to show the (non-blocking)
+        /// "email not confirmed" hint in account settings.
+        /// </summary>
+        [Authorize]
+        [HttpGet("me")]
+        public async Task<IActionResult> Me()
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized();
+
+            var user = await _userManager.FindByIdAsync(userId);
+            if (user == null)
+                return Unauthorized();
+
+            return Ok(new
+            {
+                email = user.Email,
+                username = user.UserName,
+                firstName = user.FirstName,
+                lastName = user.LastName,
+                emailConfirmed = user.EmailConfirmed
+            });
+        }
+
         [Authorize]
         [HttpPut("profile")]
         public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileDto model)
@@ -380,6 +560,21 @@ namespace ExpenseTracker.API.Controllers
             return await _userManager.FindByNameAsync(username) == null;
         }
 
+        /// <summary>
+        /// Absolute SPA link for emailed flows. FRONTEND_ORIGIN (already the CORS
+        /// source of truth for a split deployment) wins; without it the request's own
+        /// origin is used, which is correct wherever the SPA ships in wwwroot
+        /// (production serves API and SPA from one host).
+        /// </summary>
+        private string BuildSpaLink(string path, string email, string token)
+        {
+            var origin = _configuration["FRONTEND_ORIGIN"];
+            if (string.IsNullOrWhiteSpace(origin))
+                origin = $"{Request.Scheme}://{Request.Host}";
+
+            return $"{origin.TrimEnd('/')}{path}?email={Uri.EscapeDataString(email)}&token={Uri.EscapeDataString(token)}";
+        }
+
         #endregion
     }
 
@@ -396,5 +591,14 @@ namespace ExpenseTracker.API.Controllers
         [Required] string NewPassword);
     public record UpdateProfileDto(
         [Required, NotWhitespace, MaxLength(100)] string Username);
+    public record ForgotPasswordDto(
+        [Required, EmailAddress] string Email);
+    public record ResetPasswordDto(
+        [Required, EmailAddress] string Email,
+        [Required] string Token,
+        [Required] string NewPassword);
+    public record ConfirmEmailDto(
+        [Required, EmailAddress] string Email,
+        [Required] string Token);
 }
     
