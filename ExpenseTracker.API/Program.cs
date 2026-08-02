@@ -7,6 +7,7 @@ using ExpenseTracker.Infrastructure.Persistence;
 using ExpenseTracker.Infrastructure.Services;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -46,6 +47,14 @@ builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 //otherwise trip the limit within seconds.
 var authRateLimitPermits = builder.Configuration.GetValue<int?>("RateLimiting:Auth:PermitLimit") ?? 10;
 var authRateLimitWindow = TimeSpan.FromSeconds(builder.Configuration.GetValue<int?>("RateLimiting:Auth:WindowSeconds") ?? 60);
+//General limiter over the whole API surface: a publicly reachable API with open registration
+//shouldn't rely on the auth lane alone. Partitioned per authenticated user (NameIdentifier
+//claim) so one abusive account can't starve the rest; anonymous traffic falls back to the
+//client IP, which behind Railway's proxy is the proxy's — the same shared-partition caveat as
+//the auth lane, hence the generous ceiling. Requires UseRateLimiter to run after
+//UseAuthentication so the claim is populated.
+var globalRateLimitPermits = builder.Configuration.GetValue<int?>("RateLimiting:Global:PermitLimit") ?? 300;
+var globalRateLimitWindow = TimeSpan.FromSeconds(builder.Configuration.GetValue<int?>("RateLimiting:Global:WindowSeconds") ?? 60);
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -56,6 +65,17 @@ builder.Services.AddRateLimiter(options =>
             {
                 PermitLimit = authRateLimitPermits,
                 Window = authRateLimitWindow,
+                QueueLimit = 0
+            }));
+    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier)
+                          ?? httpContext.Connection.RemoteIpAddress?.ToString()
+                          ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = globalRateLimitPermits,
+                Window = globalRateLimitWindow,
                 QueueLimit = 0
             }));
 });
@@ -99,8 +119,10 @@ if (app.Environment.IsDevelopment())
 app.UseStaticFiles();
 
 app.UseCors("ReactCors");
-app.UseRateLimiter();
 app.UseAuthentication();
+// After UseAuthentication on purpose: the global limiter partitions by the user's
+// NameIdentifier claim, which is only populated once the JWT has been validated.
+app.UseRateLimiter();
 app.UseAuthorization();
 app.MapControllers();
 app.MapGet("/health", () => Results.Ok("OK"));
