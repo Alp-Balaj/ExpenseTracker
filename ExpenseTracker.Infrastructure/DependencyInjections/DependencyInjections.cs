@@ -38,6 +38,10 @@ public static class DependencyInjection
         services.AddScoped(typeof(IAccountRepository), typeof(AccountRepository));
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
         services.AddScoped<ITransactionReportService, TransactionReportService>();
+        // Sugg-6: CSV import. In Infrastructure because both phases need the
+        // database — duplicate detection reads the account's existing rows, and
+        // the commit writes many of them in one transaction.
+        services.AddScoped<IStatementImportService, StatementImportService>();
         services.AddScoped<IUserPreferencesService, UserPreferencesService>();
         // Sugg-4: the due queue behind planned transactions. In Infrastructure
         // because both generating and committing need the DbContext itself —
