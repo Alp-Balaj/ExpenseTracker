@@ -15,6 +15,14 @@ public sealed class CashflowProjectionService : ICashflowProjectionService
     /// </summary>
     private const int HorizonDays = 30;
 
+    /// <summary>
+    /// How long a split bill is assumed to take to come back, in days. Matches
+    /// the fortnight after which <c>WeeklyDigestJob</c> starts calling a
+    /// receivable overdue, so the projection and the nag agree on when a
+    /// friend has become slow.
+    /// </summary>
+    private const int SettlementLagDays = 14;
+
     /// <summary>The accounts money can actually be spent from — credit and investments are not liquid.</summary>
     private static readonly AmountType[] LiquidTypes =
     [
@@ -61,18 +69,39 @@ public sealed class CashflowProjectionService : ICashflowProjectionService
         // those bills recur on their own schedule and are projected from the
         // templates below, so leaving them in the burn rate would count each
         // one twice — once as history, once as a future due date.
+        //
+        // Stream R: the numerator is net of split bills. The burn rate answers
+        // "how fast is my own money going", and the part a friend is expected to
+        // hand back is not going anywhere — it comes back as an inflow further
+        // down, on its own expected date.
         var monthSpend = await _unitOfWork.Expenses.Query()
             .Where(e => e.Date >= firstOfMonth && e.Date <= today)
             .GroupBy(e => e.Account.Currency.Code)
-            .Select(g => new { Code = g.Key, Total = g.Sum(e => e.Amount) })
+            .Select(g => new
+            {
+                Code = g.Key,
+                Total = g.Sum(e => e.Amount - (e.Reimbursement == null ? 0m : e.Reimbursement.ExpectedAmount))
+            })
             .ToListAsync(cancellationToken);
 
+        // Netted the same way, and it has to be: this figure is not an analysis
+        // total in its own right, it is the correction term subtracted from the
+        // numerator above. Whatever a committed bill contributed there is exactly
+        // what has to come back out here — leave it gross against a net numerator
+        // and a planned bill that happened to be split would subtract more than
+        // it ever added, quietly dragging the burn rate below the truth (or into
+        // the Math.Max(0) floor, which hides the error completely).
         var committedPlanned = await _unitOfWork.PlannedOccurrences.Query()
             .Where(o => o.State == PlannedOccurrenceState.Committed
                 && o.ExpenseId != null
                 && o.Expense!.Date >= firstOfMonth
                 && o.Expense.Date <= today)
-            .Select(o => new { Code = o.Expense!.Account.Currency.Code, o.Expense.Amount })
+            .Select(o => new
+            {
+                Code = o.Expense!.Account.Currency.Code,
+                Amount = o.Expense.Amount
+                    - (o.Expense.Reimbursement == null ? 0m : o.Expense.Reimbursement.ExpectedAmount)
+            })
             .ToListAsync(cancellationToken);
 
         var monthToDate = CurrencyTotals.SumConvertible(
@@ -118,6 +147,39 @@ public sealed class CashflowProjectionService : ICashflowProjectionService
             var date = row.DueDate < today ? today : row.DueDate;
             if (date > end) continue;
             flows.Add((date, row.Kind, row.Amount, row.Kind == PlannedKind.Income ? row.ToCode : row.FromCode));
+        }
+
+        // ── Money owed to the user (Stream R, sentence 4) ─────────────────
+        // A receivable is a real expected inflow, so the projection has to see
+        // it: the burn rate above already stopped counting the fronted part as
+        // spending, and this is where it comes back.
+        var receivables = await _unitOfWork.Reimbursements.Query()
+            .Select(r => new
+            {
+                r.Expense.Date,
+                Code = r.Expense.Account.Currency.Code,
+                r.ExpectedAmount,
+                // Nullable: SUM over no settlement rows is NULL, and a receivable
+                // nobody has paid anything towards is the ordinary case.
+                Settled = r.Settlements.Sum(s => (decimal?)s.Amount)
+            })
+            .ToListAsync(cancellationToken);
+
+        foreach (var receivable in receivables)
+        {
+            var open = receivable.ExpectedAmount - (receivable.Settled ?? 0m);
+            if (open <= 0m) continue;
+
+            // Nobody settles a split bill the same evening, and nobody chases it
+            // forever either; a fortnight is the assumption, and it is the same
+            // fortnight the weekly digest calls "late". Already past it, the
+            // money is assumed to arrive today rather than in the past — the
+            // identical clamp the overdue pending occurrences above get.
+            var date = receivable.Date.AddDays(SettlementLagDays);
+            if (date < today) date = today;
+            if (date > end) continue;
+
+            flows.Add((date, PlannedKind.Income, open, receivable.Code));
         }
 
         var accountCodes = accounts.ToDictionary(a => a.Id, a => a.Code);

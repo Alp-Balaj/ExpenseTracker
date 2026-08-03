@@ -33,6 +33,10 @@ public sealed class BudgetService : IBudgetService
         // user's base currency, so spend has to be converted before comparison.
         // The month filter and the currency join both run in SQL — this used to
         // pull every expense the user ever recorded to measure one month.
+        //
+        // Stream R: a budget measures the user's own share, so what is expected
+        // back from other people comes off the top, on the day of the *expense*.
+        // A budget therefore does not twitch when a friend finally pays up.
         var monthSpend = await _unitOfWork.Expenses.Query()
             .Where(e => e.Date >= firstDay && e.Date < firstDayOfNextMonth)
             .GroupBy(e => new { e.CategoryId, Code = e.Account.Currency.Code })
@@ -40,7 +44,7 @@ public sealed class BudgetService : IBudgetService
             {
                 g.Key.CategoryId,
                 g.Key.Code,
-                Total = g.Sum(e => e.Amount)
+                Total = g.Sum(e => e.Amount - (e.Reimbursement == null ? 0m : e.Reimbursement.ExpectedAmount))
             })
             .ToListAsync(cancellationToken);
 

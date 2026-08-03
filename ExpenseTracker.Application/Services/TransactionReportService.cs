@@ -45,7 +45,11 @@ namespace ExpenseTracker.Application.Services
                         Kind = TransactionKind.Expense,
                         Category = x.Category.Name,
                         Account = x.Account.Name,
-                        Amount = -x.Amount,
+                        // Stream R: the report is an analysis surface, so an
+                        // expense weighs what it actually cost the user — the
+                        // gross bill less what others are expected to give back,
+                        // on the expense's own date.
+                        Amount = -(x.Amount - (x.Reimbursement == null ? 0m : x.Reimbursement.ExpectedAmount)),
                         Currency = x.Account.Currency.Code
                     })
                     .ToListAsync(cancellationToken);

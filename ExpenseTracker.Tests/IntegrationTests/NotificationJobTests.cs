@@ -75,7 +75,12 @@ public sealed class NotificationJobTests
     }
 
     private static async Task CreateExpenseAsync(
-        HttpClient client, Guid accountId, Guid categoryId, decimal amount, DateOnly date)
+        HttpClient client,
+        Guid accountId,
+        Guid categoryId,
+        decimal amount,
+        DateOnly date,
+        decimal? expectedReimbursement = null)
     {
         var response = await client.PostAsJsonAsync("/api/Expense", new
         {
@@ -83,7 +88,8 @@ public sealed class NotificationJobTests
             amount,
             date = Iso(date),
             accountId,
-            categoryId
+            categoryId,
+            expectedReimbursement
         });
         response.EnsureSuccessStatusCode();
     }
@@ -320,6 +326,101 @@ public sealed class NotificationJobTests
         // comparable to the one before it — so a partial today contributes nothing,
         // and with nothing else to report there is no digest at all.
         Assert.Empty(_factory.PushSender.To(user.Endpoint));
+    }
+
+    // Stream R's two claims on the digest. The spend figure is net — "you spent
+    // X last week" is a claim about the user's own money — and a receivable that
+    // has been out longer than a fortnight earns one extra sentence, riding the
+    // digest rather than buzzing on its own. Nobody installs a budgeting app to
+    // be notified twice in one morning.
+
+    [Fact]
+    public async Task The_digest_reports_what_the_week_cost_the_user_not_what_it_cost_the_account()
+    {
+        var user = await ArrangeAsync();
+
+        // 100 last week of which 60 was other people's, against 50 the week
+        // before: 40 versus 50 is a fall, not the doubling the gross figures
+        // would have claimed.
+        await CreateExpenseAsync(
+            user.Client, user.AccountId, user.CategoryId, 100m, Today.AddDays(-2), expectedReimbursement: 60m);
+        await CreateExpenseAsync(user.Client, user.AccountId, user.CategoryId, 50m, Today.AddDays(-9));
+
+        await RunJobAsync(ScheduledJobNames.WeeklyDigest);
+
+        var messages = _factory.PushSender.To(user.Endpoint);
+        Assert.Single(messages);
+        Assert.Contains("40.00 EUR", messages[0].Body);
+        Assert.Contains("20% less than the week before", messages[0].Body);
+        Assert.DoesNotContain("100.00 EUR", messages[0].Body);
+    }
+
+    [Fact]
+    public async Task A_receivable_out_for_more_than_two_weeks_is_mentioned_in_the_digest()
+    {
+        var user = await ArrangeAsync();
+
+        // Spending in the reported week, so there is a digest for the sentence
+        // to ride on at all.
+        await CreateExpenseAsync(user.Client, user.AccountId, user.CategoryId, 50m, Today.AddDays(-2));
+        // ...and a split bill from three weeks ago that nobody has paid back.
+        await CreateExpenseAsync(
+            user.Client, user.AccountId, user.CategoryId, 90m, Today.AddDays(-21), expectedReimbursement: 30m);
+
+        await RunJobAsync(ScheduledJobNames.WeeklyDigest);
+
+        var messages = _factory.PushSender.To(user.Endpoint);
+        Assert.Single(messages);
+        // One notification, not two: no new kind, no second buzz.
+        Assert.Equal("Your week in numbers", messages[0].Title);
+        Assert.Contains("You're still owed 30.00 EUR from more than two weeks ago.", messages[0].Body);
+        Assert.Contains("You spent 50.00 EUR last week", messages[0].Body);
+
+        // The dedupe key is untouched by the extra sentence.
+        await RunJobAsync(ScheduledJobNames.WeeklyDigest);
+        Assert.Single(_factory.PushSender.To(user.Endpoint));
+    }
+
+    [Fact]
+    public async Task A_receivable_only_a_few_days_old_is_not_worth_nagging_about()
+    {
+        var user = await ArrangeAsync();
+
+        await CreateExpenseAsync(user.Client, user.AccountId, user.CategoryId, 50m, Today.AddDays(-2));
+        // Six days old: the friend has not even been slow yet.
+        await CreateExpenseAsync(
+            user.Client, user.AccountId, user.CategoryId, 90m, Today.AddDays(-6), expectedReimbursement: 30m);
+
+        await RunJobAsync(ScheduledJobNames.WeeklyDigest);
+
+        var messages = _factory.PushSender.To(user.Endpoint);
+        Assert.Single(messages);
+        Assert.DoesNotContain("still owed", messages[0].Body);
+    }
+
+    [Fact]
+    public async Task An_old_receivable_that_has_been_paid_back_is_not_mentioned()
+    {
+        var user = await ArrangeAsync();
+
+        await CreateExpenseAsync(user.Client, user.AccountId, user.CategoryId, 50m, Today.AddDays(-2));
+        await CreateExpenseAsync(
+            user.Client, user.AccountId, user.CategoryId, 90m, Today.AddDays(-21), expectedReimbursement: 30m);
+
+        var listed = await user.Client.GetFromJsonAsync<JsonElement>("/api/Reimbursement");
+        var reimbursementId = listed.EnumerateArray().Single().GetProperty("id").GetGuid();
+        (await user.Client.PostAsJsonAsync($"/api/Reimbursement/{reimbursementId}/settlements", new
+        {
+            accountId = user.AccountId,
+            amount = 30m,
+            date = Iso(Today)
+        })).EnsureSuccessStatusCode();
+
+        await RunJobAsync(ScheduledJobNames.WeeklyDigest);
+
+        var messages = _factory.PushSender.To(user.Endpoint);
+        Assert.Single(messages);
+        Assert.DoesNotContain("still owed", messages[0].Body);
     }
 
     // ── The sweep the reminders sit on ─────────────────────────────────────

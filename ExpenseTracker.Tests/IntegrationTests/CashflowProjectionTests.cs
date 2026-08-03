@@ -43,7 +43,12 @@ public sealed class CashflowProjectionTests
     }
 
     private static async Task CreateExpenseAsync(
-        HttpClient client, Guid accountId, Guid categoryId, decimal amount, DateOnly date)
+        HttpClient client,
+        Guid accountId,
+        Guid categoryId,
+        decimal amount,
+        DateOnly date,
+        decimal? expectedReimbursement = null)
     {
         var response = await client.PostAsJsonAsync("/api/Expense", new
         {
@@ -51,7 +56,8 @@ public sealed class CashflowProjectionTests
             amount,
             date = date.ToString("yyyy-MM-dd"),
             accountId,
-            categoryId
+            categoryId,
+            expectedReimbursement
         });
         response.EnsureSuccessStatusCode();
     }
@@ -230,6 +236,199 @@ public sealed class CashflowProjectionTests
         Assert.Equal(
             starting - 30m * 2m,
             projection.GetProperty("projectedEndBalance").GetDecimal());
+    }
+
+    // ── Stream R: split bills ─────────────────────────────────────────────
+    // The burn rate answers "how fast is my own money going", so the part other
+    // people are expected to hand back is not burn — it is a scheduled inflow,
+    // and it appears further down the same series.
+
+    [Fact]
+    public async Task A_user_who_never_splits_a_bill_gets_no_receivable_inflows_at_all()
+    {
+        var client = await ApiClient.CreateAuthenticatedClientAsync(_factory);
+        var eurId = await ApiClient.CreateCurrencyAsync(client, "EUR", rate: 1m);
+        var accountId = await CreateAccountAsync(client, eurId, balance: 1_000m, amountType: 0);
+        var categoryId = await ApiClient.CreateCategoryAsync(client, name: "Everyday");
+
+        var d = Today.Day;
+        await CreateExpenseAsync(
+            client, accountId, categoryId, 3m * d, new DateOnly(Today.Year, Today.Month, 1));
+
+        var projection = await GetProjectionAsync(client);
+
+        // The regression pin for both of this file's sites: identical to what
+        // the projection produced before reimbursements existed.
+        Assert.Equal(1_000m - 3m * d, projection.GetProperty("startingBalance").GetDecimal());
+        Assert.Equal(3m, projection.GetProperty("dailyBurnRate").GetDecimal());
+        Assert.Equal(
+            1_000m - 3m * d - 30m * 3m,
+            projection.GetProperty("projectedEndBalance").GetDecimal());
+        Assert.All(
+            projection.GetProperty("points").EnumerateArray(),
+            p => Assert.Equal(0m, p.GetProperty("plannedInflow").GetDecimal()));
+    }
+
+    [Fact]
+    public async Task A_split_bill_burns_only_the_users_share()
+    {
+        var client = await ApiClient.CreateAuthenticatedClientAsync(_factory);
+        var eurId = await ApiClient.CreateCurrencyAsync(client, "EUR", rate: 1m);
+        var accountId = await CreateAccountAsync(client, eurId, balance: 1_000m, amountType: 0);
+        var categoryId = await ApiClient.CreateCategoryAsync(client, name: "Everyday");
+
+        // 3 per elapsed day left the account, but a third of it was other
+        // people's: the user is burning 2 a day, not 3.
+        var d = Today.Day;
+        await CreateExpenseAsync(
+            client, accountId, categoryId, 3m * d, new DateOnly(Today.Year, Today.Month, 1),
+            expectedReimbursement: 1m * d);
+
+        var projection = await GetProjectionAsync(client);
+
+        // Gross still left the account — that is what a balance is.
+        Assert.Equal(1_000m - 3m * d, projection.GetProperty("startingBalance").GetDecimal());
+        Assert.Equal(2m, projection.GetProperty("dailyBurnRate").GetDecimal());
+    }
+
+    [Fact]
+    public async Task An_open_receivable_is_projected_as_an_inflow_a_fortnight_after_the_expense()
+    {
+        var client = await ApiClient.CreateAuthenticatedClientAsync(_factory);
+        var eurId = await ApiClient.CreateCurrencyAsync(client, "EUR", rate: 1m);
+        var accountId = await CreateAccountAsync(client, eurId, balance: 1_000m, amountType: 0);
+        var categoryId = await ApiClient.CreateCategoryAsync(client, name: "Everyday");
+
+        // Dated today, so the fortnight lands well inside the 30-day horizon
+        // whatever day of the month the suite runs on.
+        await CreateExpenseAsync(client, accountId, categoryId, 100m, Today, expectedReimbursement: 60m);
+
+        var projection = await GetProjectionAsync(client);
+
+        Assert.Equal(60m, PointAt(projection, Today.AddDays(14)).GetProperty("plannedInflow").GetDecimal());
+        Assert.Equal(0m, PointAt(projection, Today.AddDays(13)).GetProperty("plannedInflow").GetDecimal());
+        Assert.Equal(0m, PointAt(projection, Today).GetProperty("plannedInflow").GetDecimal());
+    }
+
+    [Fact]
+    public async Task A_receivable_already_older_than_a_fortnight_is_assumed_to_arrive_today()
+    {
+        var client = await ApiClient.CreateAuthenticatedClientAsync(_factory);
+        var eurId = await ApiClient.CreateCurrencyAsync(client, "EUR", rate: 1m);
+        var accountId = await CreateAccountAsync(client, eurId, balance: 1_000m, amountType: 0);
+        var categoryId = await ApiClient.CreateCategoryAsync(client, name: "Everyday");
+
+        // Last month's dinner: the fortnight is long gone, but pretending the
+        // money already arrived in the past would leave it out of the series
+        // entirely. Same clamp an overdue pending bill gets.
+        await CreateExpenseAsync(
+            client, accountId, categoryId, 100m, Today.AddMonths(-1), expectedReimbursement: 60m);
+
+        var projection = await GetProjectionAsync(client);
+
+        Assert.Equal(60m, PointAt(projection, Today).GetProperty("plannedInflow").GetDecimal());
+        // Last month's spending is not this month's burn.
+        Assert.Equal(0m, projection.GetProperty("dailyBurnRate").GetDecimal());
+        Assert.Equal(1_000m - 100m + 60m, PointAt(projection, Today).GetProperty("projectedBalance").GetDecimal());
+    }
+
+    [Fact]
+    public async Task A_settled_receivable_stops_projecting_an_inflow()
+    {
+        var client = await ApiClient.CreateAuthenticatedClientAsync(_factory);
+        var eurId = await ApiClient.CreateCurrencyAsync(client, "EUR", rate: 1m);
+        var accountId = await CreateAccountAsync(client, eurId, balance: 1_000m, amountType: 0);
+        var categoryId = await ApiClient.CreateCategoryAsync(client, name: "Everyday");
+
+        await CreateExpenseAsync(client, accountId, categoryId, 100m, Today, expectedReimbursement: 60m);
+
+        var listed = await client.GetFromJsonAsync<JsonElement>("/api/Reimbursement");
+        var reimbursementId = listed.EnumerateArray().Single().GetProperty("id").GetGuid();
+
+        // Half of it comes back now; only the rest is still expected.
+        (await client.PostAsJsonAsync($"/api/Reimbursement/{reimbursementId}/settlements", new
+        {
+            accountId,
+            amount = 25m,
+            date = Today.ToString("yyyy-MM-dd")
+        })).EnsureSuccessStatusCode();
+
+        var projection = await GetProjectionAsync(client);
+        Assert.Equal(35m, PointAt(projection, Today.AddDays(14)).GetProperty("plannedInflow").GetDecimal());
+
+        // And once it is closed out, the projection stops promising it.
+        (await client.PostAsJsonAsync($"/api/Reimbursement/{reimbursementId}/settlements", new
+        {
+            accountId,
+            amount = 35m,
+            date = Today.ToString("yyyy-MM-dd")
+        })).EnsureSuccessStatusCode();
+
+        var settled = await GetProjectionAsync(client);
+        Assert.All(
+            settled.GetProperty("points").EnumerateArray(),
+            p => Assert.Equal(0m, p.GetProperty("plannedInflow").GetDecimal()));
+    }
+
+    // The interaction the contract calls out by name. The committed-planned
+    // subtraction is not an analysis total in its own right — it is the
+    // correction term taken off the burn numerator so a recurring bill is not
+    // counted once as history and again as a future due date. It therefore has
+    // to be measured on exactly the same footing as that numerator. Left gross
+    // against a net numerator, a planned bill that happens to be split subtracts
+    // more than it ever contributed and drags the burn rate below the truth —
+    // or into the Math.Max(0) floor, where the error becomes invisible.
+    [Fact]
+    public async Task A_committed_planned_bill_that_is_split_does_not_skew_the_burn_rate()
+    {
+        var client = await ApiClient.CreateAuthenticatedClientAsync(_factory);
+        var eurId = await ApiClient.CreateCurrencyAsync(client, "EUR", rate: 1m);
+        var accountId = await CreateAccountAsync(client, eurId, balance: 1_000m, amountType: 0);
+        var categoryId = await ApiClient.CreateCategoryAsync(client, name: "Everyday");
+
+        // Everyday spend of 2 per elapsed day, no split.
+        var d = Today.Day;
+        await CreateExpenseAsync(
+            client, accountId, categoryId, 2m * d, new DateOnly(Today.Year, Today.Month, 1));
+
+        // A 100 flat share planned, due today, committed...
+        await CreatePlannedAsync(
+            client, "Rent", 100m, kind: 0, categoryId,
+            startDate: Today, recurrence: 0, fromAccountId: accountId);
+        var occurrences = await GetOccurrencesAsync(client);
+        var occurrenceId = occurrences.EnumerateArray().Single().GetProperty("id").GetGuid();
+        (await client.PostAsJsonAsync(
+            $"/api/PlannedTransaction/occurrences/{occurrenceId}/commit", new { })).EnsureSuccessStatusCode();
+
+        // ...and then split after the fact, because a flatmate owes 60 of it.
+        var rent = (await client.GetFromJsonAsync<JsonElement>("/api/Expense"))
+            .EnumerateArray()
+            .Single(e => e.GetProperty("title").GetString() == "Rent");
+
+        (await client.PutAsJsonAsync($"/api/Expense/{rent.GetProperty("id").GetGuid()}", new
+        {
+            title = "Rent",
+            amount = 100m,
+            date = rent.GetProperty("date").GetString(),
+            accountId,
+            categoryId,
+            expectedReimbursement = 60m
+        })).EnsureSuccessStatusCode();
+
+        var projection = await GetProjectionAsync(client);
+
+        // The rent contributed 40 to the numerator and 40 came back out of it:
+        // net zero, exactly as when it was unsplit and contributed 100 and 100.
+        // The everyday burn is untouched at 2.
+        Assert.Equal(2m, projection.GetProperty("dailyBurnRate").GetDecimal());
+        Assert.Equal(1_000m - 2m * d - 100m, projection.GetProperty("startingBalance").GetDecimal());
+
+        // The 60 is still owed, so it is still an expected inflow — once, and
+        // for its open amount.
+        var inflows = projection.GetProperty("points")
+            .EnumerateArray()
+            .Sum(p => p.GetProperty("plannedInflow").GetDecimal());
+        Assert.Equal(60m, inflows);
     }
 
     [Fact]

@@ -82,10 +82,19 @@ public sealed class CategoryService : ICategoryService
         return summaries;
     }
 
+    /// <summary>
+    /// Net of what other people owe on a split bill (Stream R). A category total
+    /// is an analysis figure — "what this category cost me" — so it counts the
+    /// user's own share, taken on the date of the expense. The gross figure that
+    /// left the account still lives on the account's balance.
+    /// </summary>
     private async Task<ILookup<Guid, CategoryTotal>> ExpenseTotalsAsync(CancellationToken cancellationToken) =>
         (await _unitOfWork.Expenses.Query()
             .GroupBy(e => new { e.CategoryId, Code = e.Account.Currency.Code })
-            .Select(g => new CategoryTotal(g.Key.CategoryId, g.Key.Code, g.Sum(e => e.Amount)))
+            .Select(g => new CategoryTotal(
+                g.Key.CategoryId,
+                g.Key.Code,
+                g.Sum(e => e.Amount - (e.Reimbursement == null ? 0m : e.Reimbursement.ExpectedAmount))))
             .ToListAsync(cancellationToken))
         .ToLookup(t => t.CategoryId);
 

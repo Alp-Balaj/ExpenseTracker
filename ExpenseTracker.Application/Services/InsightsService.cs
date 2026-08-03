@@ -35,17 +35,58 @@ public sealed class InsightsService : IInsightsService
             var first = firstOfCurrentMonth.AddMonths(-offset);
             var next = first.AddMonths(1);
 
+            // Stream R: net of what other people owe. An insight is a claim about
+            // the user's own spending, and it is dated at the *expense* — a
+            // friend settling in October must not make September look cheaper
+            // than it was reported to be at the time.
             var rows = await _unitOfWork.Expenses.Query()
                 .Where(e => e.Date >= first && e.Date < next)
                 .GroupBy(e => new { e.CategoryId, Code = e.Account.Currency.Code })
-                .Select(g => new SpendRow(g.Key.CategoryId, g.Key.Code, g.Sum(e => e.Amount)))
+                .Select(g => new SpendRow(
+                    g.Key.CategoryId,
+                    g.Key.Code,
+                    g.Sum(e => e.Amount - (e.Reimbursement == null ? 0m : e.Reimbursement.ExpectedAmount))))
                 .ToListAsync(cancellationToken);
 
             months.Add(rows);
         }
 
+        // The other side of the same coin (sentence 5): the net totals above say
+        // what the month cost, these two say how much of other people's money the
+        // user is carrying to get there, and how much of it has not come back.
+        var receivables = await _unitOfWork.Reimbursements.Query()
+            .Select(r => new
+            {
+                r.Expense.Date,
+                Code = r.Expense.Account.Currency.Code,
+                r.ExpectedAmount,
+                // Nullable: SUM over no settlements is NULL, and an untouched
+                // receivable is the common case here.
+                Settled = r.Settlements.Sum(s => (decimal?)s.Amount)
+            })
+            .ToListAsync(cancellationToken);
+
         var converter = await _conversion.GetConverterAsync(cancellationToken);
         var hasMissingRates = false;
+
+        var firstOfNextMonth = firstOfCurrentMonth.AddMonths(1);
+
+        // Fronted is scoped to the current month and measured at the expense's
+        // date; still-open is deliberately all of history, because money that has
+        // been out since March is precisely what the user has stopped seeing.
+        var frontedThisMonth = CurrencyTotals.SumConvertible(
+            converter,
+            receivables
+                .Where(r => r.Date >= firstOfCurrentMonth && r.Date < firstOfNextMonth)
+                .Select(r => new CurrencyAmount(r.Code, r.ExpectedAmount)),
+            ref hasMissingRates);
+
+        var stillOpen = CurrencyTotals.SumConvertible(
+            converter,
+            receivables
+                .Select(r => new CurrencyAmount(r.Code, r.ExpectedAmount - (r.Settled ?? 0m)))
+                .Where(a => a.Amount > 0m),
+            ref hasMissingRates);
 
         // Per month: the converted overall total and the converted per-category totals.
         var monthTotals = new decimal[TrailingMonths + 1];
@@ -123,6 +164,8 @@ public sealed class InsightsService : IInsightsService
             MonthsWithHistory = monthsWithHistory,
             CurrentMonthTotal = Round2(monthTotals[0]),
             PreviousMonthTotal = Round2(monthTotals[1]),
+            FrontedThisMonth = Round2(frontedThisMonth),
+            StillOpen = Round2(stillOpen),
             TrailingAverage = trailingAverage,
             OverallVsAveragePct = trailingAverage is decimal overallAvg
                 ? PercentChange(Round2(monthTotals[0]), overallAvg)

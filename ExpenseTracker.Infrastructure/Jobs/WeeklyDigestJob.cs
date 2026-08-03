@@ -24,6 +24,13 @@ namespace ExpenseTracker.Infrastructure.Jobs;
 /// </summary>
 public sealed class WeeklyDigestJob : IScheduledJob
 {
+    /// <summary>
+    /// How long a receivable may sit before the digest mentions it. The same
+    /// fortnight the cashflow projection assumes a split bill takes to come
+    /// back, so the two features never disagree about when "late" starts.
+    /// </summary>
+    private const int AgedReceivableDays = 14;
+
     private readonly ApplicationDbContext _context;
     private readonly IPushNotificationService _notifications;
     private readonly IPushSender _sender;
@@ -69,7 +76,7 @@ public sealed class WeeklyDigestJob : IScheduledJob
 
             try
             {
-                sent += await DigestUserAsync(userId, priorStart, weekStart, weekEnd, cancellationToken);
+                sent += await DigestUserAsync(userId, today, priorStart, weekStart, weekEnd, cancellationToken);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
@@ -81,14 +88,29 @@ public sealed class WeeklyDigestJob : IScheduledJob
     }
 
     private async Task<int> DigestUserAsync(
-        string userId, DateOnly priorStart, DateOnly weekStart, DateOnly weekEnd, CancellationToken cancellationToken)
+        string userId,
+        DateOnly today,
+        DateOnly priorStart,
+        DateOnly weekStart,
+        DateOnly weekEnd,
+        CancellationToken cancellationToken)
     {
         // Both fortnight halves in one query, then split in memory — two round
         // trips per user per week would be two for no reason.
+        // Net of split bills (Stream R): "you spent X last week" is a claim about
+        // the user's own money, so what other people are expected to pay back
+        // comes off on the day of the expense — never on the day they settle,
+        // which would make a quiet week look like a windfall.
         var rows = await _context.Expenses
             .Where(e => e.UserId == userId && e.Date >= priorStart && e.Date <= weekEnd)
             .GroupBy(e => new { e.Date, e.CategoryId, Code = e.Account.Currency.Code })
-            .Select(g => new { g.Key.Date, g.Key.CategoryId, g.Key.Code, Total = g.Sum(e => e.Amount) })
+            .Select(g => new
+            {
+                g.Key.Date,
+                g.Key.CategoryId,
+                g.Key.Code,
+                Total = g.Sum(e => e.Amount - (e.Reimbursement == null ? 0m : e.Reimbursement.ExpectedAmount))
+            })
             .ToListAsync(cancellationToken);
 
         if (rows.Count == 0) return 0;
@@ -120,7 +142,8 @@ public sealed class WeeklyDigestJob : IScheduledJob
             .FirstOrDefault(), cancellationToken);
 
         var body = $"You spent {NotificationTargets.Money(spent, thisTotal.BaseCurrency)} last week{comparison}."
-                   + (topCategory is null ? string.Empty : $" Most of it went on {topCategory}.");
+                   + (topCategory is null ? string.Empty : $" Most of it went on {topCategory}.")
+                   + await AgedReceivableSentenceAsync(userId, today, converter, cancellationToken);
 
         var delivered = await _notifications.SendToUserAsync(
             userId,
@@ -132,6 +155,48 @@ public sealed class WeeklyDigestJob : IScheduledJob
             cancellationToken);
 
         return delivered > 0 ? 1 : 0;
+    }
+
+    /// <summary>
+    /// Stream R, sentence 4: a receivable is forward-looking, and one that has
+    /// been out for more than a fortnight has stopped being forward-looking and
+    /// started being forgotten. It rides the digest rather than earning a
+    /// notification kind of its own — nobody wants a second buzz to be nagged.
+    /// <para>
+    /// Empty when nothing is that old, or when the open amounts cannot be
+    /// converted: a sentence with a blank figure in it is worse than no
+    /// sentence.
+    /// </para>
+    /// </summary>
+    private async Task<string> AgedReceivableSentenceAsync(
+        string userId, DateOnly today, CurrencyConverter converter, CancellationToken cancellationToken)
+    {
+        var cutoff = today.AddDays(-AgedReceivableDays);
+
+        var receivables = await _context.Reimbursements
+            .Where(r => r.UserId == userId && r.Expense.Date < cutoff)
+            .Select(r => new
+            {
+                Code = r.Expense.Account.Currency.Code,
+                r.ExpectedAmount,
+                // Nullable on purpose: SUM over no settlement rows is NULL, and a
+                // receivable nobody has paid a cent of is exactly the one this
+                // sentence exists for.
+                Settled = r.Settlements.Sum(s => (decimal?)s.Amount)
+            })
+            .ToListAsync(cancellationToken);
+
+        var open = receivables
+            .Select(r => new CurrencyAmount(r.Code, r.ExpectedAmount - (r.Settled ?? 0m)))
+            .Where(a => a.Amount > 0m)
+            .ToList();
+
+        if (open.Count == 0) return string.Empty;
+
+        var total = converter.Summarize(open);
+        if (total.ConvertedTotal is not decimal owed || owed <= 0m) return string.Empty;
+
+        return $" You're still owed {NotificationTargets.Money(owed, total.BaseCurrency)} from more than two weeks ago.";
     }
 
     private async Task<string?> TopCategoryAsync(string userId, Guid categoryId, CancellationToken cancellationToken)

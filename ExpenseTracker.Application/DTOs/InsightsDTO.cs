@@ -32,6 +32,26 @@ public sealed class InsightsDTO
     public decimal PreviousMonthTotal { get; init; }
 
     /// <summary>
+    /// What the user put up for other people on this month's split bills — the
+    /// sum of every expected reimbursement dated in the current month, converted.
+    /// <para>
+    /// Deliberately gross of settlements: this is "how much of the month's
+    /// spending was not really mine", and a friend paying up does not change how
+    /// much was fronted in the first place.
+    /// </para>
+    /// </summary>
+    public decimal FrontedThisMonth { get; init; }
+
+    /// <summary>
+    /// Everything still owed to the user across all of history (expected minus
+    /// settled, converted). Paired with <see cref="FrontedThisMonth"/> this is
+    /// the fronted-delta sentence: "you fronted X this month; Y is still out".
+    /// Not scoped to the month — money out since spring is the money worth
+    /// naming.
+    /// </summary>
+    public decimal StillOpen { get; init; }
+
+    /// <summary>
     /// Average monthly spend over the previous three months, averaged over the
     /// months that actually have data. Null when there is no history at all.
     /// </summary>
