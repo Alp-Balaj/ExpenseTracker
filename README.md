@@ -1,6 +1,6 @@
 # ExpenseTracker API
 
-A lightweight personal-finance Web API built with ASP.NET Core (.NET 8) and Entity Framework Core. It provides secure authentication (JWT + refresh tokens), domain-driven organization, and CRUD support for accounts, categories, incomes, expenses, savings, and future expenses.
+A lightweight personal-finance Web API built with ASP.NET Core (.NET 8) and Entity Framework Core. It provides secure authentication (JWT + refresh tokens), domain-driven organization, and CRUD support for accounts, categories, incomes, expenses, transfers, budgets, savings goals and planned transactions.
 
 The API is designed to be consumed by a React frontend and exposes interactive documentation via Swagger in Development.
 
@@ -16,31 +16,37 @@ The API is designed to be consumed by a React frontend and exposes interactive d
 
 ## Project layout
 
+A layered solution, not CQRS: there are no Commands/Queries folders and never have been.
+
 ```bash
 ExpenseTracker/
 ├── ExpenseTracker.API
 │   ├── Controllers
-│   ├── Extensions (Swagger, CORS, Auth)
+│   ├── Extensions        # CORS; Swagger and auth are wired in Program.cs
+│   ├── Middleware        # global exception -> ProblemDetails
+│   ├── Services          # hosted services (background work)
 │   └── Program.cs
 │
 ├── ExpenseTracker.Application
 │   ├── DTOs
-│   ├── Commands / Queries
-│   └── Business rules
+│   ├── Interfaces        # the contracts Infrastructure implements
+│   ├── Mapping           # entity <-> DTO
+│   ├── Options           # bound configuration sections
+│   ├── Services          # business rules
+│   └── Validation        # custom validation attributes
 │
 ├── ExpenseTracker.Domain
 │   ├── Entities
-│   └── Interfaces
+│   └── Interfaces        # repositories, unit of work
 │
 ├── ExpenseTracker.Infrastructure
-│   ├── Persistence (DbContext)
-│   ├── Identity
-│   └── Migrations
+│   ├── Persistence       # DbContext, entity configurations, migrations
+│   ├── Repositories
+│   ├── Security
+│   └── Services          # implementations that need the DbContext itself
 │
 └── ExpenseTracker.Shared
-    ├── Enums
-    ├── Shared DTOs
-    └── Constants
+    └── Enums
 ```
 
 ## Prerequisites
