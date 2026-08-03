@@ -16,6 +16,14 @@ namespace ExpenseTracker.Application.DTOs
 
         public decimal Balance { get; set; }
 
+        /// <summary>
+        /// Server-derived, never accepted from a client: how much of this
+        /// account's balance savings goals have spoken for. Usable money is
+        /// <see cref="Balance"/> minus this, and it can exceed the balance —
+        /// spending reserved money warns, it never blocks.
+        /// </summary>
+        public decimal ReservedAmount { get; set; }
+
         [NotDefault]
         public Guid CurrencyId { get; set; }
 

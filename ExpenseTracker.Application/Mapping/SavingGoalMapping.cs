@@ -4,9 +4,14 @@ namespace ExpenseTracker.Application.Mapping
 {
     public static class SavingGoalMapping
     {
-        public static SavingGoalDTO ToDto(this SavingGoal entity)
+        /// <param name="withContributions">
+        /// Set only where the navigation was actually loaded. A goal read back
+        /// after a write has none loaded, and an empty list there would read as
+        /// "this goal has no history" rather than "nobody asked for it".
+        /// </param>
+        public static SavingGoalDTO ToDto(this SavingGoal entity, bool withContributions = false)
         {
-            return new SavingGoalDTO
+            var dto = new SavingGoalDTO
             {
                Id = entity.Id,
                Title = entity.Title,
@@ -17,6 +22,24 @@ namespace ExpenseTracker.Application.Mapping
                CategoryId = entity.CategoryId,
                AccountId = entity.AccountId,
             };
+
+            if (!withContributions) return dto;
+
+            dto.Contributions = entity.SavingContributions
+                .OrderByDescending(c => c.Date).ThenByDescending(c => c.CreatedAt).ThenBy(c => c.Id)
+                .Select(c => c.ToDto())
+                .ToList();
+
+            // The goal's currency is its earliest contribution's account's —
+            // the same rule ISavingsReservationService enforces on write, read
+            // off the rows already in hand rather than queried for again.
+            dto.CurrencyCode = entity.SavingContributions
+                .Where(c => c.Account?.Currency != null)
+                .OrderBy(c => c.Date).ThenBy(c => c.CreatedAt).ThenBy(c => c.Id)
+                .Select(c => c.Account!.Currency.Code)
+                .FirstOrDefault();
+
+            return dto;
         }
         public static SavingGoal ToEntity(this SavingGoalDTO dto)
         {

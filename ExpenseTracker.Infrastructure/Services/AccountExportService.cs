@@ -213,7 +213,11 @@ public sealed class AccountExportService : IAccountExportService
                 GoalId = c.GoalId,
                 Amount = c.Amount,
                 Date = c.Date,
-                Note = c.Note
+                Note = c.Note,
+                AccountId = c.AccountId,
+                AccountName = c.AccountId is Guid accountId
+                    ? accountNames.GetValueOrDefault(accountId, string.Empty)
+                    : string.Empty
             }).ToList(),
             PlannedTransactions = planned.Select(p => new ExportPlannedTransactionDTO
             {

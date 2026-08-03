@@ -447,9 +447,54 @@ public sealed class PlannedTransactionTests
         // Goes through the same posting service TransferController uses, so the
         // savings goal is credited exactly as a hand-entered transfer would.
         Assert.Equal(200m, await ApiClient.GetSavingGoalSavedAmountAsync(fx.Client, goalId));
+        // Stream V: and reserved where the money landed.
+        Assert.Equal(200m, await ApiClient.GetAccountReservedAsync(fx.Client, savingsAccountId));
 
         var transfers = await fx.Client.GetFromJsonAsync<JsonElement>("/api/Transfer");
         Assert.Single(transfers.EnumerateArray());
+    }
+
+    // Stream V rewrote the invariant this used to trip over: a planned transfer
+    // may credit a goal opened against some other account entirely, and the
+    // contribution books on the destination.
+    [Fact]
+    public async Task A_planned_transfer_may_credit_a_goal_opened_against_another_account()
+    {
+        var fx = await ArrangeAsync(balance: 1_000m);
+        var savingsAccountId = await ApiClient.CreateAccountAsync(fx.Client, fx.CurrencyId, balance: 0m);
+        var elsewhereId = await ApiClient.CreateAccountAsync(fx.Client, fx.CurrencyId, balance: 0m);
+        var goalCategoryId = await ApiClient.CreateCategoryAsync(fx.Client, categoryType: 2);
+
+        var goalResponse = await fx.Client.PostAsJsonAsync("/api/SavingGoal", new
+        {
+            title = "Opened elsewhere",
+            targetAmount = 5_000m,
+            savedAmount = 0m,
+            deadline = Iso(Today.AddYears(1)),
+            accountId = elsewhereId,
+            categoryId = goalCategoryId
+        });
+        goalResponse.EnsureSuccessStatusCode();
+        var goalId = (await goalResponse.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid();
+
+        await CreateTemplateAsync(fx.Client, new
+        {
+            title = "Monthly savings",
+            amount = 150m,
+            kind = 2,
+            recurrence = 2,
+            startDate = Iso(Today.AddDays(-1)),
+            fromAccountId = fx.AccountId,
+            toAccountId = savingsAccountId,
+            savingGoalId = goalId
+        });
+
+        var occurrenceId = (await QueueAsync(fx.Client))[0].GetProperty("id").GetGuid();
+        (await CommitAsync(fx.Client, occurrenceId)).EnsureSuccessStatusCode();
+
+        Assert.Equal(150m, await ApiClient.GetSavingGoalSavedAmountAsync(fx.Client, goalId));
+        Assert.Equal(150m, await ApiClient.GetAccountReservedAsync(fx.Client, savingsAccountId));
+        Assert.Equal(0m, await ApiClient.GetAccountReservedAsync(fx.Client, elsewhereId));
     }
 
     [Fact]

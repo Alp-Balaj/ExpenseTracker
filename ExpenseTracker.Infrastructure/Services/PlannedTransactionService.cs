@@ -27,6 +27,7 @@ public sealed class PlannedTransactionService : IPlannedTransactionService
     private readonly ITransferPostingService _transferPosting;
     private readonly IAccountRepository _accountRepository;
     private readonly ICurrentUserServices _currentUser;
+    private readonly ISavingsReservationService _reservations;
     private readonly ILogger<PlannedTransactionService> _logger;
 
     public PlannedTransactionService(
@@ -36,6 +37,7 @@ public sealed class PlannedTransactionService : IPlannedTransactionService
         ITransferPostingService transferPosting,
         IAccountRepository accountRepository,
         ICurrentUserServices currentUser,
+        ISavingsReservationService reservations,
         ILogger<PlannedTransactionService> logger)
     {
         _context = context;
@@ -44,6 +46,7 @@ public sealed class PlannedTransactionService : IPlannedTransactionService
         _transferPosting = transferPosting;
         _accountRepository = accountRepository;
         _currentUser = currentUser;
+        _reservations = reservations;
         _logger = logger;
     }
 
@@ -320,16 +323,19 @@ public sealed class PlannedTransactionService : IPlannedTransactionService
         if (fromAccount.CurrencyId != toAccount.CurrencyId)
             return PlannedActionResult.Invalid("Transfers must be between accounts with the same currency");
 
-        // A goal that has since been repointed at another account would silently
-        // credit savings the money never reached, so it is re-checked here rather
-        // than trusted from when the template was created.
+        // Stream V: the goal is no longer tied to one account, so the money may
+        // land anywhere and the contribution books where it lands. What is
+        // re-checked here rather than trusted from template-creation time is the
+        // currency: a goal reserves in one, and the destination may have been
+        // repointed since.
         var savingGoalId = template.SavingGoalId;
         if (savingGoalId is Guid goalId)
         {
             var goal = await _unitOfWork.SavingGoals.GetUserDataByIdAsync(goalId, cancellationToken);
             if (goal == null) return PlannedActionResult.Invalid("Saving goal not found");
-            if (goal.AccountId != to)
-                return PlannedActionResult.Invalid("The savings goal must be backed by the destination account");
+
+            var accountError = await _reservations.ValidateContributionAccountAsync(goalId, to, null, cancellationToken);
+            if (accountError != null) return PlannedActionResult.Invalid(accountError);
         }
 
         var transfer = new Transfer

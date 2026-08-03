@@ -24,18 +24,21 @@ namespace ExpenseTracker.API.Controllers
         private readonly ITransferPostingService _posting;
         private readonly IAccountRepository _accountRepository;
         private readonly IUserRelatedRepository<SavingGoal> _savingGoalRepository;
+        private readonly ISavingsReservationService _reservations;
 
         public TransferController(
             IUnitOfWork uow,
             IUserRelatedRepository<Transfer> repo,
             ITransferPostingService posting,
             IAccountRepository accountRepository,
-            IUserRelatedRepository<SavingGoal> savingGoalRepository)
+            IUserRelatedRepository<SavingGoal> savingGoalRepository,
+            ISavingsReservationService reservations)
             : base(uow, repo)
         {
             _posting = posting;
             _accountRepository = accountRepository;
             _savingGoalRepository = savingGoalRepository;
+            _reservations = reservations;
         }
 
         protected override TransferDTO ToDto(Transfer entity) => entity.ToDto();
@@ -50,7 +53,16 @@ namespace ExpenseTracker.API.Controllers
         // Both accounts are loaded (not just balance-adjusted) because v1 needs
         // their currencies: "Account not found" covers both the missing and the
         // someone-else's case, so it never confirms another user's ids.
-        protected override async Task<string?> ValidateReferencesAsync(TransferDTO dto, CancellationToken cancellationToken = default)
+        protected override Task<string?> ValidateReferencesAsync(TransferDTO dto, CancellationToken cancellationToken = default) =>
+            ValidateReferencesAsync(dto, ignoreContributionId: null, cancellationToken);
+
+        /// <param name="ignoreContributionId">
+        /// The contribution this transfer already booked, when the transfer is
+        /// being edited. Update tears the old contribution down and books a new
+        /// one, so leaving it in would let a goal's own only contribution veto
+        /// its own correction.
+        /// </param>
+        private async Task<string?> ValidateReferencesAsync(TransferDTO dto, Guid? ignoreContributionId, CancellationToken cancellationToken = default)
         {
             if (dto.FromAccountId == dto.ToAccountId)
                 return "A transfer must be between two different accounts";
@@ -73,10 +85,14 @@ namespace ExpenseTracker.API.Controllers
                 if (goal == null)
                     return "Saving goal not found";
 
-                // The goal's saved amount is supposed to track money actually
-                // sitting in its account, so only a transfer landing there counts.
-                if (goal.AccountId != dto.ToAccountId)
-                    return "The savings goal must be backed by the destination account";
+                // Stream V: a goal is no longer backed by one account, so any
+                // account may credit it — the contribution simply books against
+                // the destination, where the money actually landed. What still
+                // holds is the currency: a goal reserves in one currency so that
+                // "reserved" stays subtractable from a balance.
+                var accountError = await _reservations.ValidateContributionAccountAsync(
+                    goalId, dto.ToAccountId, ignoreContributionId, cancellationToken);
+                if (accountError != null) return accountError;
             }
 
             return null;
@@ -112,7 +128,7 @@ namespace ExpenseTracker.API.Controllers
             var entity = await _repository.GetUserDataByIdAsync(id, cancellationToken);
             if (entity == null) return NotFound();
 
-            var referenceError = await ValidateReferencesAsync(dto, cancellationToken);
+            var referenceError = await ValidateReferencesAsync(dto, entity.SavingContributionId, cancellationToken);
             if (referenceError != null) return BadRequest(referenceError);
 
             // Snapshot before ApplyUpdates overwrites the old values: the reversal

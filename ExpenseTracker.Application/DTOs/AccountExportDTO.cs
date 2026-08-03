@@ -120,7 +120,8 @@ namespace ExpenseTracker.Application.DTOs
         public decimal SavedAmount { get; init; }
         public DateOnly Deadline { get; init; }
         public string? Description { get; init; }
-        public Guid AccountId { get; init; }
+        /// <summary>Deprecated by Stream V — a goal's original backing account, absent on goals created since.</summary>
+        public Guid? AccountId { get; init; }
         public Guid CategoryId { get; init; }
     }
 
@@ -131,6 +132,9 @@ namespace ExpenseTracker.Application.DTOs
         public decimal Amount { get; init; }
         public DateOnly Date { get; init; }
         public string? Note { get; init; }
+        /// <summary>The account this money is reserved against — an export without it would not say where the money is.</summary>
+        public Guid? AccountId { get; init; }
+        public string AccountName { get; init; } = string.Empty;
     }
 
     public sealed class ExportPlannedTransactionDTO

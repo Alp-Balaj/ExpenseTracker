@@ -132,11 +132,13 @@ public sealed class CategorySummaryTests
         goalResponse.EnsureSuccessStatusCode();
         var goalId = (await goalResponse.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid();
 
+        // Stream V: a contribution also names the account holding its money.
         (await client.PostAsJsonAsync($"/api/SavingContribution/{goalId}", new
         {
             goalId,
             amount = 33m,
-            date = "2026-02-10"
+            date = "2026-02-10",
+            accountId
         })).EnsureSuccessStatusCode();
 
         // A planned expense against the very same category. It must not reach the

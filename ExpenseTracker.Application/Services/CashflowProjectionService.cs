@@ -33,11 +33,16 @@ public sealed class CashflowProjectionService : ICashflowProjectionService
 
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICurrencyConversionService _conversion;
+    private readonly ISavingsReservationService _reservations;
 
-    public CashflowProjectionService(IUnitOfWork unitOfWork, ICurrencyConversionService conversion)
+    public CashflowProjectionService(
+        IUnitOfWork unitOfWork,
+        ICurrencyConversionService conversion,
+        ISavingsReservationService reservations)
     {
         _unitOfWork = unitOfWork;
         _conversion = conversion;
+        _reservations = reservations;
     }
 
     public async Task<CashflowProjectionDTO> GetProjectionAsync(CancellationToken cancellationToken = default)
@@ -57,11 +62,21 @@ public sealed class CashflowProjectionService : ICashflowProjectionService
             .Select(a => new { a.Id, a.AmountType, a.Balance, Code = a.Currency.Code })
             .ToListAsync(cancellationToken);
 
+        // Stream V: the line starts from usable money, not raw balances. A
+        // balance that is half reserved for next year's holiday cannot be spent
+        // on groceries, and a projection that says otherwise promises money
+        // that is already spoken for. Reserved is in its account's own currency
+        // — a goal only ever reserves in one — so it is subtracted before the
+        // conversion, not after.
+        var reserved = await _reservations.GetReservedByAccountAsync(cancellationToken);
+
         var openingBalance = Round2(CurrencyTotals.SumConvertible(
             converter,
             accounts
                 .Where(a => LiquidTypes.Contains(a.AmountType))
-                .Select(a => new CurrencyAmount(a.Code, a.Balance)),
+                .Select(a => new CurrencyAmount(
+                    a.Code,
+                    a.Balance - (reserved.TryGetValue(a.Id, out var held) ? held : 0m))),
             ref hasMissingRates));
 
         // ── Everyday burn: this month's spend divided by the days elapsed ─

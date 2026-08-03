@@ -35,6 +35,7 @@ namespace ExpenseTracker.API.Controllers
         private readonly IUserRelatedRepository<Category> _categoryRepository;
         private readonly IUserRelatedRepository<SavingGoal> _savingGoalRepository;
         private readonly IAccountRepository _accountRepository;
+        private readonly ISavingsReservationService _reservations;
 
         public PlannedTransactionController(
             IUnitOfWork uow,
@@ -43,7 +44,8 @@ namespace ExpenseTracker.API.Controllers
             IUserRelatedRepository<PlannedOccurrence> occurrences,
             IUserRelatedRepository<Category> categoryRepository,
             IUserRelatedRepository<SavingGoal> savingGoalRepository,
-            IAccountRepository accountRepository)
+            IAccountRepository accountRepository,
+            ISavingsReservationService reservations)
             : base(uow, repo)
         {
             _planned = planned;
@@ -51,6 +53,7 @@ namespace ExpenseTracker.API.Controllers
             _categoryRepository = categoryRepository;
             _savingGoalRepository = savingGoalRepository;
             _accountRepository = accountRepository;
+            _reservations = reservations;
         }
 
         protected override PlannedTransactionDTO ToDto(PlannedTransaction entity) =>
@@ -245,10 +248,16 @@ namespace ExpenseTracker.API.Controllers
                 var goal = await _savingGoalRepository.GetUserDataByIdAsync(goalId, cancellationToken);
                 if (goal == null) return "Saving goal not found";
 
-                // Checked here when the destination is already known, and again at
-                // commit time — the goal may be repointed in between.
-                if (to.Account != null && goal.AccountId != to.Account.Id)
-                    return "The savings goal must be backed by the destination account";
+                // Stream V: any account may credit a goal — the contribution
+                // books where the money lands. The currency still has to match,
+                // and is checked here when the destination is already known and
+                // again at commit time, since either side may move in between.
+                if (to.Account != null)
+                {
+                    var accountError = await _reservations.ValidateContributionAccountAsync(
+                        goalId, to.Account.Id, null, cancellationToken);
+                    if (accountError != null) return accountError;
+                }
             }
 
             return null;

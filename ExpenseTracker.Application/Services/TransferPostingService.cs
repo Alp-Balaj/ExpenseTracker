@@ -46,6 +46,10 @@ public sealed class TransferPostingService : ITransferPostingService
             Amount = transfer.Amount,
             Date = transfer.Date,
             Note = transfer.Note,
+            // Stream V: money is reserved where it landed. A transfer crediting
+            // a goal books its contribution against the destination account,
+            // whatever account the goal was originally opened against.
+            AccountId = transfer.ToAccountId,
             SavingGoal = null!
         };
 

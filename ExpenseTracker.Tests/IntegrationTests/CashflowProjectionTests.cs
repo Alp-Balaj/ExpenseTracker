@@ -448,4 +448,109 @@ public sealed class CashflowProjectionTests
             projection.GetProperty("points").EnumerateArray(),
             p => Assert.Equal(500m, p.GetProperty("projectedBalance").GetDecimal()));
     }
+
+    // ── Stream V: the line starts from usable money ──────────────────────
+
+    // The regression pin the plan asks for: a user with no goals sees the
+    // projection produced before envelopes existed, to the cent.
+    [Fact]
+    public async Task A_user_with_no_goals_projects_exactly_what_they_did_before_envelopes()
+    {
+        var client = await ApiClient.CreateAuthenticatedClientAsync(_factory);
+        var eurId = await ApiClient.CreateCurrencyAsync(client, "EUR", rate: 1m);
+        await CreateAccountAsync(client, eurId, balance: 500m, amountType: 0);
+
+        var projection = await GetProjectionAsync(client);
+
+        Assert.Equal(500m, projection.GetProperty("startingBalance").GetDecimal());
+        Assert.Equal(500m, projection.GetProperty("projectedEndBalance").GetDecimal());
+    }
+
+    [Fact]
+    public async Task Reserved_money_is_not_projected_as_spendable()
+    {
+        var client = await ApiClient.CreateAuthenticatedClientAsync(_factory);
+        var eurId = await ApiClient.CreateCurrencyAsync(client, "EUR", rate: 1m);
+        var accountId = await CreateAccountAsync(client, eurId, balance: 500m, amountType: 0);
+
+        await ReserveAsync(client, accountId, amount: 200m);
+
+        var projection = await GetProjectionAsync(client);
+
+        // 500 in the account, 200 of it spoken for by a goal: the line may only
+        // promise the 300 that is actually free.
+        Assert.Equal(300m, projection.GetProperty("startingBalance").GetDecimal());
+        Assert.Equal(300m, projection.GetProperty("projectedEndBalance").GetDecimal());
+    }
+
+    [Fact]
+    public async Task Releasing_reserved_money_gives_it_back_to_the_projection()
+    {
+        var client = await ApiClient.CreateAuthenticatedClientAsync(_factory);
+        var eurId = await ApiClient.CreateCurrencyAsync(client, "EUR", rate: 1m);
+        var accountId = await CreateAccountAsync(client, eurId, balance: 500m, amountType: 0);
+
+        var goalId = await ReserveAsync(client, accountId, amount: 200m);
+        await ContributeAsync(client, goalId, accountId, amount: -80m);
+
+        // 200 reserved less an 80 release leaves 120 held, so 380 of the 500 is
+        // free again — releasing money is how it comes back.
+        Assert.Equal(380m, (await GetProjectionAsync(client)).GetProperty("startingBalance").GetDecimal());
+    }
+
+    [Fact]
+    public async Task Reserved_money_is_subtracted_in_its_own_currency_before_conversion()
+    {
+        var client = await ApiClient.CreateAuthenticatedClientAsync(_factory);
+        var eurId = await ApiClient.CreateCurrencyAsync(client, "EUR", rate: 1m);
+        var usdId = await ApiClient.CreateCurrencyAsync(client, "USD", rate: 2m);
+        var euroAccount = await CreateAccountAsync(client, eurId, balance: 100m, amountType: 0);
+        var dollarAccount = await CreateAccountAsync(client, usdId, balance: 100m, amountType: 0);
+
+        await ReserveAsync(client, euroAccount, amount: 40m);
+        await ReserveAsync(client, dollarAccount, amount: 40m);
+
+        var projection = await GetProjectionAsync(client);
+
+        // A goal only ever reserves in one currency, so the subtraction happens
+        // account-side and the converter only ever sees usable figures:
+        // (100−40) EUR + (100−40) USD at rate 2 = 60 + 120.
+        //
+        // The number discriminates: subtracting reserved after conversion, as
+        // if it were already base currency, would give 300 − 80 = 220.
+        Assert.Equal(180m, projection.GetProperty("startingBalance").GetDecimal());
+    }
+
+    /// <summary>Opens a goal on an account and reserves money against it.</summary>
+    private static async Task<Guid> ReserveAsync(HttpClient client, Guid accountId, decimal amount)
+    {
+        var categoryId = await ApiClient.CreateCategoryAsync(client, categoryType: 2);
+
+        var goal = await client.PostAsJsonAsync("/api/SavingGoal", new
+        {
+            title = $"Goal {Guid.NewGuid():N}",
+            targetAmount = 1_000m,
+            savedAmount = 0m,
+            deadline = Today.AddYears(1).ToString("yyyy-MM-dd"),
+            accountId,
+            categoryId
+        });
+        goal.EnsureSuccessStatusCode();
+        var goalId = (await goal.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid();
+
+        await ContributeAsync(client, goalId, accountId, amount);
+        return goalId;
+    }
+
+    private static async Task ContributeAsync(HttpClient client, Guid goalId, Guid accountId, decimal amount)
+    {
+        var response = await client.PostAsJsonAsync($"/api/SavingContribution/{goalId}", new
+        {
+            goalId,
+            amount,
+            date = Today.ToString("yyyy-MM-dd"),
+            accountId
+        });
+        response.EnsureSuccessStatusCode();
+    }
 }

@@ -5,7 +5,12 @@ namespace ExpenseTracker.Application.Mapping
 {
     public static class AccountMapping
     {
-        public static AccountDTO ToDto(this Account account)
+        /// <param name="reserved">
+        /// What savings goals have spoken for on this account. Passed in rather
+        /// than read off a navigation: it is one grouped query for the whole
+        /// list, never a sum per row.
+        /// </param>
+        public static AccountDTO ToDto(this Account account, decimal reserved = 0m)
         {
             return new AccountDTO
             {
@@ -13,6 +18,7 @@ namespace ExpenseTracker.Application.Mapping
                 Name = account.Name,
                 AmountType = (int)account.AmountType,
                 Balance = account.Balance,
+                ReservedAmount = reserved,
                 CurrencyId = account.CurrencyId,
                 CurrencyCode = account.Currency?.Code
                     ?? throw new InvalidOperationException("Currency navigation not loaded on Account"),
