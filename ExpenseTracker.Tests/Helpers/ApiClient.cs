@@ -79,11 +79,11 @@ public static class ApiClient
         return (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid();
     }
 
-    public static async Task<Guid> CreateAccountAsync(HttpClient client, Guid currencyId, decimal balance = 0m)
+    public static async Task<Guid> CreateAccountAsync(HttpClient client, Guid currencyId, decimal balance = 0m, string name = "Test Account")
     {
         var response = await client.PostAsJsonAsync("/api/Account", new
         {
-            name = "Test Account",
+            name,
             amountType = 0,
             balance,
             currencyId
@@ -115,5 +115,13 @@ public static class ApiClient
         var response = await client.GetAsync($"/api/SavingGoal/{goalId}");
         response.EnsureSuccessStatusCode();
         return (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("savedAmount").GetDecimal();
+    }
+
+    /// <summary>Stream V: what savings goals have spoken for on one account.</summary>
+    public static async Task<decimal> GetAccountReservedAsync(HttpClient client, Guid accountId)
+    {
+        var response = await client.GetAsync($"/api/Account/{accountId}");
+        response.EnsureSuccessStatusCode();
+        return (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("reservedAmount").GetDecimal();
     }
 }

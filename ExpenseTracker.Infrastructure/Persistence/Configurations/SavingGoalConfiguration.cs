@@ -27,10 +27,13 @@ namespace ExpenseTracker.Infrastructure.Persistence.Configurations
                    .HasMaxLength(500)
                    .IsRequired(false);
 
+            // Optional since Stream V: a goal's money lives wherever its
+            // contributions say it lives, so the single backing account is now
+            // only a hint. The column stays — deprecated, never dropped.
             builder.HasOne(s => s.Account)
                    .WithMany(a => a.SavingGoals)
                    .HasForeignKey(s => s.AccountId)
-                   .IsRequired()
+                   .IsRequired(false)
                    .OnDelete(DeleteBehavior.Restrict);
 
             builder.HasOne(s => s.Category)

@@ -236,23 +236,63 @@ public sealed class TransferInvariantTests
         Assert.Equal(700m, await ApiClient.GetAccountBalanceAsync(client, savings));
     }
 
-    // The goal's SavedAmount is meant to track money in the account behind it,
-    // so a transfer landing somewhere else can't be counted toward it.
+    // Rewritten by Stream V, deliberately — this used to be
+    // Crediting_a_goal_backed_by_a_different_account_is_rejected. A goal is no
+    // longer backed by one account, so a transfer may credit it from anywhere;
+    // the contribution books against the destination, because that is where the
+    // money actually landed and therefore where it is now reserved.
     [Fact]
-    public async Task Crediting_a_goal_backed_by_a_different_account_is_rejected()
+    public async Task Crediting_a_goal_books_the_contribution_on_the_destination_account()
     {
         var client = await ApiClient.CreateAuthenticatedClientAsync(_factory);
         var currencyId = await ApiClient.CreateCurrencyAsync(client);
         var checking = await ApiClient.CreateAccountAsync(client, currencyId, balance: 1000m);
         var savings = await ApiClient.CreateAccountAsync(client, currencyId, balance: 500m);
         var investment = await ApiClient.CreateAccountAsync(client, currencyId, balance: 50m);
+
+        // Opened against the investment account, credited into savings.
         var goalId = await CreateGoalAsync(client, investment);
 
-        var response = await client.PostAsJsonAsync("/api/Transfer", TransferBody(checking, savings, amount: 200m, savingGoalId: goalId));
+        await CreateTransferAsync(client, checking, savings, amount: 200m, savingGoalId: goalId);
+
+        Assert.Equal(200m, await ApiClient.GetSavingGoalSavedAmountAsync(client, goalId));
+        Assert.Equal(200m, await ApiClient.GetAccountReservedAsync(client, savings));
+        Assert.Equal(0m, await ApiClient.GetAccountReservedAsync(client, investment));
+
+        // The move itself is unaffected.
+        Assert.Equal(800m, await ApiClient.GetAccountBalanceAsync(client, checking));
+        Assert.Equal(700m, await ApiClient.GetAccountBalanceAsync(client, savings));
+    }
+
+    // The currency half of the old invariant does survive: a goal reserves in
+    // one currency, so a transfer landing in another is still refused.
+    [Fact]
+    public async Task Crediting_a_goal_from_an_account_in_another_currency_is_rejected()
+    {
+        var client = await ApiClient.CreateAuthenticatedClientAsync(_factory);
+        var euros = await ApiClient.CreateCurrencyAsync(client, code: "EUR");
+        var dollars = await ApiClient.CreateCurrencyAsync(client, code: "USD");
+        var euroAccount = await ApiClient.CreateAccountAsync(client, euros, balance: 1000m);
+        var dollarChecking = await ApiClient.CreateAccountAsync(client, dollars, balance: 1000m);
+        var dollarSavings = await ApiClient.CreateAccountAsync(client, dollars, balance: 500m);
+        var goalId = await CreateGoalAsync(client, euroAccount);
+
+        // Fix the goal's currency to euros with a contribution it can hold...
+        var contribution = await client.PostAsJsonAsync($"/api/SavingContribution/{goalId}", new
+        {
+            goalId,
+            amount = 10m,
+            date = DateOnly.FromDateTime(DateTime.UtcNow).ToString("yyyy-MM-dd"),
+            accountId = euroAccount,
+        });
+        contribution.EnsureSuccessStatusCode();
+
+        var response = await client.PostAsJsonAsync("/api/Transfer",
+            TransferBody(dollarChecking, dollarSavings, amount: 200m, savingGoalId: goalId));
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        Assert.Equal(1000m, await ApiClient.GetAccountBalanceAsync(client, checking));
-        Assert.Equal(0m, await ApiClient.GetSavingGoalSavedAmountAsync(client, goalId));
+        Assert.Equal(1000m, await ApiClient.GetAccountBalanceAsync(client, dollarChecking));
+        Assert.Equal(10m, await ApiClient.GetSavingGoalSavedAmountAsync(client, goalId));
     }
 
     private static async Task<Guid> CreateTransferAsync(

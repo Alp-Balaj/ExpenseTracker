@@ -14,10 +14,13 @@ namespace ExpenseTracker.API.Controllers
     public class AccountController : BaseController<Account, AccountDTO>
     {
         private readonly IAccountRepository _accountRepository;
-        public AccountController(IUnitOfWork uow, IUserRelatedRepository<Account> repo, IAccountRepository accountRepository)
+        private readonly ISavingsReservationService _reservations;
+        public AccountController(IUnitOfWork uow, IUserRelatedRepository<Account> repo, IAccountRepository accountRepository,
+            ISavingsReservationService reservations)
             : base(uow, repo)
         {
             _accountRepository = accountRepository;
+            _reservations = reservations;
         }
         protected override AccountDTO ToDto(Account entity) => entity.ToDto();
         protected override Account ToEntity(AccountDTO dto) => dto.ToEntity();
@@ -36,7 +39,11 @@ namespace ExpenseTracker.API.Controllers
 
             SetTotalCount(totalCount);
 
-            var dtos = items.Select(e => ToDto(e)).ToList();
+            // One grouped query for the page, not one per account: an account's
+            // usable money is its balance minus what goals have reserved on it.
+            var reserved = await _reservations.GetReservedByAccountAsync(cancellationToken);
+
+            var dtos = items.Select(e => e.ToDto(Reserved(reserved, e.Id))).ToList();
 
             return Ok(dtos);
         }
@@ -46,8 +53,14 @@ namespace ExpenseTracker.API.Controllers
         {
             var entity = await _accountRepository.GetUserDataWithCurrencyByIdAsync(id, cancellationToken);
             if (entity == null) return NotFound();
-            return Ok(ToDto(entity));
+
+            var reserved = await _reservations.GetReservedByAccountAsync(cancellationToken);
+
+            return Ok(entity.ToDto(Reserved(reserved, entity.Id)));
         }
+
+        private static decimal Reserved(IReadOnlyDictionary<Guid, decimal> reserved, Guid accountId) =>
+            reserved.TryGetValue(accountId, out var amount) ? amount : 0m;
 
         [HttpPost]
         public override async Task<IActionResult> Create([FromBody] AccountDTO dto, CancellationToken cancellationToken)

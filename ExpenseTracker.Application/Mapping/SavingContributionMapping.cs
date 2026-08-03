@@ -12,7 +12,8 @@ namespace ExpenseTracker.Application.Mapping
                GoalId = entity.GoalId,
                Amount = entity.Amount,
                Date = entity.Date,
-               Note = entity.Note
+               Note = entity.Note,
+               AccountId = entity.AccountId,
             };
         }
         public static SavingContribution ToEntity(this SavingContributionDTO dto)
@@ -25,6 +26,7 @@ namespace ExpenseTracker.Application.Mapping
                 Amount = dto.Amount,
                 Date = dto.Date,
                 Note = dto.Note,
+                AccountId = dto.AccountId,
             };
         }
         public static void Apply(this SavingContribution entity, SavingContributionDTO dto)
@@ -33,6 +35,7 @@ namespace ExpenseTracker.Application.Mapping
             entity.Date = dto.Date;
             entity.Note = dto.Note;
             entity.GoalId = dto.GoalId;
+            entity.AccountId = dto.AccountId;
         }
     }
 }

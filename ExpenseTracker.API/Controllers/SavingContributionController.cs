@@ -17,11 +17,14 @@ namespace ExpenseTracker.API.Controllers
     public class SavingContributionController : BaseController<SavingContribution, SavingContributionDTO>
     {
         private readonly ISavingGoalServices _savingGoalServices;
+        private readonly ISavingsReservationService _reservations;
         public SavingContributionController(IUnitOfWork uow, IUserRelatedRepository<SavingContribution> repo,
-        ISavingGoalServices savingGoalServices)
+        ISavingGoalServices savingGoalServices,
+        ISavingsReservationService reservations)
             : base(uow, repo)
         {
             _savingGoalServices = savingGoalServices;
+            _reservations = reservations;
         }
         protected override SavingContributionDTO ToDto(SavingContribution entity) => entity.ToDto();
         protected override SavingContribution ToEntity(SavingContributionDTO dto) => dto.ToEntity();
@@ -56,6 +59,13 @@ namespace ExpenseTracker.API.Controllers
 
         private async Task<IActionResult> CreateGuarded(SavingContribution entity, CancellationToken cancellationToken)
         {
+            // Which account the money is held against is not decoration: it is
+            // what makes "reserved" subtractable from a balance, so it is
+            // checked before anything is written.
+            var accountError = await _reservations.ValidateContributionAccountAsync(
+                entity.GoalId, entity.AccountId, ignoreContributionId: null, cancellationToken);
+            if (accountError != null) return BadRequest(accountError);
+
             await using var transaction = await _unitOfWork.BeginTransactionAsync(cancellationToken);
 
             var (Success, ErrorMessage) = await _savingGoalServices.UpdateSavingGoalAmount(entity.GoalId, entity.Amount, cancellationToken);
@@ -81,6 +91,13 @@ namespace ExpenseTracker.API.Controllers
             var oldGoalId = entity.GoalId;
 
             ApplyUpdates(entity, dto);
+
+            // The row being edited is excluded from the goal's currency, so the
+            // only contribution a goal has can always be corrected — including
+            // onto an account in a different currency.
+            var accountError = await _reservations.ValidateContributionAccountAsync(
+                entity.GoalId, entity.AccountId, ignoreContributionId: entity.Id, cancellationToken);
+            if (accountError != null) return BadRequest(accountError);
 
             await using var transaction = await _unitOfWork.BeginTransactionAsync(cancellationToken);
 

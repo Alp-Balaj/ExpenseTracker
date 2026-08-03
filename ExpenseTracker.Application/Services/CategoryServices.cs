@@ -105,10 +105,30 @@ public sealed class CategoryService : ICategoryService
             .ToListAsync(cancellationToken))
         .ToLookup(t => t.CategoryId);
 
+    /// <summary>
+    /// Stream V: a goal's currency is its earliest contribution's account's, not
+    /// the deprecated single backing account's — which post-V goals may not have
+    /// at all, and which would otherwise group a real total under a null code.
+    /// Grouping happens after materialising because that first-contribution
+    /// lookup is a correlated subquery, and the row count here is the user's
+    /// goals, not their history.
+    /// </summary>
     private async Task<ILookup<Guid, CategoryTotal>> SavingGoalTotalsAsync(CancellationToken cancellationToken) =>
         (await _unitOfWork.SavingGoals.Query()
-            .GroupBy(s => new { s.CategoryId, Code = s.Account.Currency.Code })
-            .Select(g => new CategoryTotal(g.Key.CategoryId, g.Key.Code, g.Sum(s => s.SavedAmount)))
+            .Select(s => new
+            {
+                s.CategoryId,
+                Code = s.SavingContributions
+                    .OrderBy(c => c.Date).ThenBy(c => c.CreatedAt).ThenBy(c => c.Id)
+                    .Select(c => c.Account!.Currency.Code)
+                    .FirstOrDefault(),
+                s.SavedAmount
+            })
             .ToListAsync(cancellationToken))
+        // A goal with no contributions has nothing to report and no currency to
+        // report it in — its SavedAmount only ever moves through contributions.
+        .Where(s => s.Code != null)
+        .GroupBy(s => new { s.CategoryId, s.Code })
+        .Select(g => new CategoryTotal(g.Key.CategoryId, g.Key.Code!, g.Sum(s => s.SavedAmount)))
         .ToLookup(t => t.CategoryId);
 }
