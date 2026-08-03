@@ -180,8 +180,15 @@ public sealed class AccountPortabilityTests
         var lines = csv.Split('\n', StringSplitOptions.RemoveEmptyEntries);
 
         Assert.StartsWith("Date,Kind,Title,Category,Account,Amount,Currency,Description", lines[0]);
-        Assert.Contains(lines, l => l.Contains("Expense") && l.Contains("-42.50"));
+        Assert.Contains(lines, l => l.Contains("Expense") && l.Contains(",-42.50,"));
         Assert.Contains(lines, l => l.Contains("Income") && l.Contains("2500"));
+
+        // Caught by the browser pass, not by the first draft of this test: a
+        // negative amount starts with '-', which the formula-injection guard
+        // treats as a formula. Prefixing it makes every expense in the sheet a
+        // text cell, so the column silently refuses to sum — which defeats the
+        // entire point of offering a CSV.
+        Assert.DoesNotContain(lines, l => l.Contains(",'-"));
         // Both halves of the transfer, so the sheet's own arithmetic balances.
         Assert.Contains(lines, l => l.StartsWith("2026-08-03,Transfer in"));
         Assert.Contains(lines, l => l.StartsWith("2026-08-03,Transfer out"));

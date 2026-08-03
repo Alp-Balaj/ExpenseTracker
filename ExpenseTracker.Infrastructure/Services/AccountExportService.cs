@@ -269,14 +269,17 @@ public sealed class AccountExportService : IAccountExportService
 
         foreach (var row in rows)
         {
+            // Date and Amount go through as typed values, not pre-formatted
+            // strings: a negative amount would otherwise trip the formula guard
+            // and land in the sheet as text that will not sum.
             CsvWriter.AppendRow(
                 builder,
-                row.Date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                row.Date,
                 row.Kind,
                 row.Title,
                 row.CategoryName,
                 row.AccountName,
-                row.Amount.ToString(CultureInfo.InvariantCulture),
+                row.Amount,
                 row.CurrencyCode,
                 row.Description);
         }
