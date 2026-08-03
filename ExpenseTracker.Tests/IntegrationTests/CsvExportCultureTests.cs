@@ -31,7 +31,10 @@ public sealed class CsvExportCultureTests : IDisposable
         // A comma-decimal culture as the server process default -- if any format
         // call ever drops its explicit InvariantCulture, this flips 1234.5 to 1234,5
         // and silently corrupts the CSV's column count.
-        CultureInfo.DefaultThreadCurrentCulture = new CultureInfo("de-DE");
+        // Override-free, so the hostile culture this test installs is the same
+        // comma-decimal one everywhere and not the host user's personalised
+        // variant of it.
+        CultureInfo.DefaultThreadCurrentCulture = CultureInfo.GetCultureInfo("de-DE");
 
         var client = await ApiClient.CreateAuthenticatedClientAsync(_factory);
         var currencyId = await ApiClient.CreateCurrencyAsync(client);

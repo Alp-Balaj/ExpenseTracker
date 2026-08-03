@@ -228,9 +228,12 @@ public static class CsvStatementParser
             // The culture is the profile's claim about the file, not a guarantee.
             // Fall back to the other convention rather than rejecting a row the
             // user can plainly read.
+            // GetCultureInfo is override-free: this fallback exists to represent
+            // the comma-decimal convention, so it must not pick up whatever
+            // separators the host user configured for their own desktop.
             var fallback = culture.NumberFormat.NumberDecimalSeparator == ","
                 ? CultureInfo.InvariantCulture
-                : new CultureInfo("de-DE");
+                : CultureInfo.GetCultureInfo("de-DE");
 
             if (!decimal.TryParse(text, style, fallback, out amount))
                 return false;

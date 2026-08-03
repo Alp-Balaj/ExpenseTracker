@@ -17,8 +17,14 @@ namespace ExpenseTracker.Tests.UnitTests;
 /// </summary>
 public sealed class CsvStatementParserTests
 {
-    private static readonly CultureInfo German = new("de-DE");
-    private static readonly CultureInfo American = new("en-US");
+    // GetCultureInfo and not `new CultureInfo(...)`: the constructor honours the
+    // Windows per-user format overrides from Control Panel, so a developer who
+    // has set a custom short-date pattern gets a "de-DE" that does not parse
+    // dd.MM.yyyy and the ambiguous-slash-date case fails on their machine only.
+    // These tests assert against the standard conventions, so they must ask for
+    // the culture as the CLDR defines it, not as this desktop redefines it.
+    private static readonly CultureInfo German = CultureInfo.GetCultureInfo("de-DE");
+    private static readonly CultureInfo American = CultureInfo.GetCultureInfo("en-US");
 
     // ── Delimiters ─────────────────────────────────────────────────────────
 
