@@ -1,6 +1,7 @@
 ﻿using ExpenseTracker.Application.Interfaces;
 using ExpenseTracker.Application.Options;
 using ExpenseTracker.Domain.Interfaces;
+using ExpenseTracker.Infrastructure.Jobs;
 using ExpenseTracker.Infrastructure.Persistence;
 using ExpenseTracker.Infrastructure.Repositories;
 using ExpenseTracker.Infrastructure.Services;
@@ -62,6 +63,38 @@ public static class DependencyInjection
         // Stream C: signup seeds a starter catalogue for the new user; standalone so
         // demo-data fabrication can reuse it for any user id.
         services.AddScoped<IUserDataSeeder, UserDataSeeder>();
+
+        #region Stream P — background scheduler and Web Push
+        services.Configure<SchedulerOptions>(configuration.GetSection(SchedulerOptions.SectionName));
+        services.Configure<PushOptions>(configuration.GetSection(PushOptions.SectionName));
+
+        // The persisted half of the scheduler. The host itself lives in the API
+        // project (hosting is a host concern, Sugg-11); this is the part that
+        // decides what is due, which is a database question.
+        services.AddScoped<IScheduledJobStore, ScheduledJobStore>();
+
+        // No API key: Web Push authenticates per request with a VAPID JWT signed
+        // from Push:PrivateKey, which arrives as a Railway env var and nothing else.
+        services.AddHttpClient(WebPushSender.HttpClientName, (sp, client) =>
+        {
+            var options = sp.GetRequiredService<IOptions<PushOptions>>().Value;
+            // A push service that hangs must not pin a background scope open for
+            // the default 100 seconds — the nightly sweep walks every subscription.
+            client.Timeout = options.Timeout;
+        });
+        services.AddScoped<IPushSender, WebPushSender>();
+        services.AddScoped<IPushNotificationService, PushNotificationService>();
+        services.AddScoped<IPushSubscriptionService, PushSubscriptionService>();
+
+        // Every job registered against the same interface: the host enumerates
+        // them and knows nothing else about them, so Stream M's demo-expiry job
+        // is one more line here and no change anywhere else.
+        services.AddScoped<IScheduledJob, ExchangeRateSweepJob>();
+        services.AddScoped<IScheduledJob, PlannedOccurrenceSweepJob>();
+        services.AddScoped<IScheduledJob, PlannedDueReminderJob>();
+        services.AddScoped<IScheduledJob, BudgetThresholdJob>();
+        services.AddScoped<IScheduledJob, WeeklyDigestJob>();
+        #endregion
 
         // Stream C: outbound email. "Logging" (the default) sends nothing and writes
         // the message — links included — to the log. A real provider (decision D1)

@@ -49,11 +49,52 @@ public sealed class PlannedTransactionService : IPlannedTransactionService
 
     private static DateOnly Today => PlannedSchedule.Today;
 
-    public async Task<int> GenerateDueOccurrencesAsync(CancellationToken cancellationToken = default)
+    public Task<int> GenerateDueOccurrencesAsync(CancellationToken cancellationToken = default) =>
+        GenerateForUserAsync(_currentUser.UserId, Today, cancellationToken);
+
+    public async Task<int> GenerateDueOccurrencesForAllUsersAsync(CancellationToken cancellationToken = default)
     {
-        var userId = _currentUser.UserId;
         var today = Today;
 
+        // Only users who actually have an active template — the sweep should cost
+        // nothing for an account that has never used planned transactions.
+        var userIds = await _context.PlannedTransactions
+            .Where(p => p.IsActive)
+            .Select(p => p.UserId)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
+        var queued = 0;
+
+        foreach (var userId in userIds)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            try
+            {
+                queued += await GenerateForUserAsync(userId, today, cancellationToken);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                // One user's bad data must not stop the sweep for everyone else —
+                // the same reason the exchange rate sweep survives one user's
+                // exotic currency.
+                _logger.LogError(ex, "Planned occurrence sweep failed for user {UserId}; continuing.", userId);
+            }
+        }
+
+        return queued;
+    }
+
+    /// <summary>
+    /// The generator itself, against an explicit user. Both entry points share it
+    /// so a background sweep and a read-triggered generation can never disagree
+    /// about what has come due — the daily job exists to make the queue right
+    /// before a *notification* goes out, not to replace generation on read.
+    /// </summary>
+    private async Task<int> GenerateForUserAsync(
+        string userId, DateOnly today, CancellationToken cancellationToken)
+    {
         var templates = await _context.PlannedTransactions
             .Where(p => p.UserId == userId && p.IsActive)
             .ToListAsync(cancellationToken);

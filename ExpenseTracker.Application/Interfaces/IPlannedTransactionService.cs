@@ -43,6 +43,23 @@ public interface IPlannedTransactionService
     Task<int> GenerateDueOccurrencesAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// The same generation, for every user who has an active template.
+    /// <para>
+    /// Stream P's daily job. Generation on read still exists and is still what
+    /// the queue depends on for correctness — this does not replace it. What it
+    /// adds is a queue that is already right when nobody is looking, which is
+    /// what a notification about a bill needs: "rent is due tomorrow" cannot be
+    /// computed from a queue that only fills itself when the user opens the app.
+    /// </para>
+    /// <para>
+    /// Takes no user id for the same reason
+    /// <see cref="IExchangeRateUpdater.UpdateAllUsersAsync"/> takes none: it runs
+    /// with no HTTP context at all.
+    /// </para>
+    /// </summary>
+    Task<int> GenerateDueOccurrencesForAllUsersAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Turns a pending occurrence into a real Expense, Income or Transfer,
     /// moving the account balances through the same path the controllers use,
     /// inside one database transaction with the state change.

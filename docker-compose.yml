@@ -19,6 +19,10 @@ services:
       Jwt__Issuer: "ExpenseTracker"
       Jwt__Audience: "ExpenseTrackerUsers"
       RefreshToken__Pepper: "${REFRESH_PEPPER:?set REFRESH_PEPPER in .env}"
+      # Optional (Stream P): blank means push simply reports itself unavailable.
+      Push__PublicKey: "${PUSH_PUBLIC_KEY:-}"
+      Push__PrivateKey: "${PUSH_PRIVATE_KEY:-}"
+      Push__Subject: "${PUSH_SUBJECT:-mailto:admin@expensetracker.local}"
     depends_on:
       - db
 
