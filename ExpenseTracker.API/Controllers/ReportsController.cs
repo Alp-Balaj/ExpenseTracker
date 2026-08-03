@@ -1,5 +1,6 @@
 ﻿using ExpenseTracker.Application.DTOs.Reports;
 using ExpenseTracker.Application.Interfaces;
+using ExpenseTracker.Application.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Globalization;
@@ -31,16 +32,9 @@ public sealed class ReportsController : ControllerBase
     {
         var result = await _service.GenerateAsync(request, cancellationToken);
 
-        static string Csv(string s)
-        {
-            // Spreadsheet formula injection: neutralize leading =, +, -, @.
-            if (s.Length > 0 && s[0] is '=' or '+' or '-' or '@')
-                s = "'" + s;
-
-            if (s.Contains('"') || s.Contains(',') || s.Contains('\n') || s.Contains('\r'))
-                return $"\"{s.Replace("\"", "\"\"")}\"";
-            return s;
-        }
+        // Escaping (and the formula-injection guard) moved to CsvWriter with C·4,
+        // so the report export and the full-account export cannot drift apart on it.
+        static string Csv(string s) => CsvWriter.Escape(s);
 
         var sb = new StringBuilder();
         sb.AppendLine("Date,Type,Category,Account,Amount,Currency");

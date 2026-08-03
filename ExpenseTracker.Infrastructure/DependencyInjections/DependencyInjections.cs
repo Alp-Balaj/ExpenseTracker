@@ -43,6 +43,9 @@ public static class DependencyInjection
         // database — duplicate detection reads the account's existing rows, and
         // the commit writes many of them in one transaction.
         services.AddScoped<IStatementImportService, StatementImportService>();
+        // C·4: the way out. Reads every user-owned table at once, which is the one
+        // operation the per-entity repositories are the wrong shape for.
+        services.AddScoped<IAccountExportService, AccountExportService>();
         services.AddScoped<IUserPreferencesService, UserPreferencesService>();
         // Sugg-4: the due queue behind planned transactions. In Infrastructure
         // because both generating and committing need the DbContext itself —
