@@ -96,6 +96,11 @@ public static class DependencyInjection
         services.AddScoped<IScheduledJob, WeeklyDigestJob>();
         #endregion
 
+        // Stream O: the server half of the offline outbox. A retried write has to
+        // apply exactly once, and only the database can decide which of two
+        // simultaneous replays wins.
+        services.AddScoped<IIdempotencyStore, IdempotencyStore>();
+
         // Stream C: outbound email. "Logging" (the default) sends nothing and writes
         // the message — links included — to the log. A real provider (decision D1)
         // slots in as another case behind the same config key, so switching is a
