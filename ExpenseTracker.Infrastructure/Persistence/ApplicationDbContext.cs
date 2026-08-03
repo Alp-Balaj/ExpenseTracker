@@ -19,6 +19,7 @@ namespace ExpenseTracker.Infrastructure.Persistence
         public DbSet<Category> Categories { get; set; }
         public DbSet<Currency> Currencies { get; set; }
         public DbSet<Expense> Expenses { get; set; }
+        public DbSet<IdempotencyRecord> IdempotencyRecords { get; set; }
         public DbSet<Income> Incomes { get; set; }
         public DbSet<NotificationDelivery> NotificationDeliveries { get; set; }
         public DbSet<PlannedTransaction> PlannedTransactions { get; set; }

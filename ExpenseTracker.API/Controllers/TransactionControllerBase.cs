@@ -1,3 +1,4 @@
+using ExpenseTracker.API.Filters;
 using ExpenseTracker.Application.Interfaces;
 using ExpenseTracker.Domain.Entities.Common;
 using ExpenseTracker.Domain.Interfaces;
@@ -26,7 +27,11 @@ namespace ExpenseTracker.API.Controllers
         protected abstract decimal AmountOf(TEntity entity);
         protected abstract Guid AccountIdOf(TEntity entity);
 
+        // Stream O: the quick-add write path. Inert without an Idempotency-Key
+        // header, so the ordinary online SPA is unaffected; the offline outbox
+        // sends one so a replayed POST cannot post the same expense twice.
         [HttpPost]
+        [Idempotent]
         public override async Task<IActionResult> Create([FromBody] TDto dto, CancellationToken cancellationToken)
         {
             var referenceError = await ValidateReferencesAsync(dto, cancellationToken);
