@@ -1,11 +1,6 @@
-﻿using Microsoft.AspNetCore.Builder;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Options;
-using Microsoft.IdentityModel.Tokens;
-using Microsoft.OpenApi.Models;
-using System.Text;
+﻿using Microsoft.OpenApi.Models;
 
-namespace ExpenseTracker.Infrastructure.Services
+namespace ExpenseTracker.API.Extensions
 {
     public static class SwaggerServiceExtensions
     {

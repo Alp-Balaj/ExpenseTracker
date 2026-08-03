@@ -38,7 +38,6 @@ public static class DependencyInjection
         services.AddScoped(typeof(IUserRelatedRepository<>), typeof(UserRelatedRepository<>));
         services.AddScoped(typeof(IAccountRepository), typeof(AccountRepository));
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
-        services.AddScoped<ITransactionReportService, TransactionReportService>();
         // Sugg-6: CSV import. In Infrastructure because both phases need the
         // database — duplicate detection reads the account's existing rows, and
         // the commit writes many of them in one transaction.

@@ -5,7 +5,7 @@ using ExpenseTracker.Domain.Interfaces;
 using ExpenseTracker.Shared.Enums;
 using Microsoft.EntityFrameworkCore;
 
-namespace ExpenseTracker.Infrastructure.Services
+namespace ExpenseTracker.Application.Services
 {
     public sealed class TransactionReportService : ITransactionReportService
     {

@@ -7,15 +7,13 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.21" />
-    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="8.0.21" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.23" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="8.0.23">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
-    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="8.0.0" />
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.1" />
+    <!-- Sugg-11: the only package Domain genuinely needs. `User : IdentityUser`
+         is an ASP.NET Identity type, and prying it apart would mean a new
+         identity schema and migrations, not a mechanical move. This is the
+         Identity *abstraction* package: unlike the EntityFrameworkCore one it
+         was carrying before, it drags no EF, no JwtBearer and no DI container
+         into the domain layer. -->
+    <PackageReference Include="Microsoft.Extensions.Identity.Stores" Version="8.0.21" />
   </ItemGroup>
 
   <ItemGroup>
