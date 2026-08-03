@@ -23,6 +23,10 @@ namespace ExpenseTracker.Application.DependencyInjection
             // and LINQ, so it is application logic, not persistence.
             services.AddScoped<ITransactionReportService, TransactionReportService>();
             services.AddScoped<ICashflowProjectionService, CashflowProjectionService>();
+            // Stream R: split bills. Shared by ReimbursementController and by the
+            // expense write path, so the receivable and the expense that created
+            // it can never disagree.
+            services.AddScoped<IReimbursementService, ReimbursementService>();
 
             return services;
         }

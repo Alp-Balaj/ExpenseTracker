@@ -27,5 +27,13 @@ namespace ExpenseTracker.Domain.Entities
         public required Guid CategoryId { get; set; }
         public required Account Account { get; set; }
         public required Category Category { get; set; }
+
+        /// <summary>
+        /// Stream R: the split-bill side of this expense, or null when it is an
+        /// ordinary one. A navigation and nothing else — no scalar lands on
+        /// Expense, because <see cref="Amount"/> must go on meaning exactly what
+        /// left the account.
+        /// </summary>
+        public Reimbursement? Reimbursement { get; set; }
     }
 }

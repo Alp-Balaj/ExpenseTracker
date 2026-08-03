@@ -19,6 +19,8 @@ namespace ExpenseTracker.Infrastructure
         public IUserRelatedRepository<Income> Incomes { get; }
         public IUserRelatedRepository<PlannedTransaction> PlannedTransactions { get; }
         public IUserRelatedRepository<PlannedOccurrence> PlannedOccurrences { get; }
+        public IUserRelatedRepository<Reimbursement> Reimbursements { get; }
+        public IUserRelatedRepository<ReimbursementSettlement> ReimbursementSettlements { get; }
         public IUserRelatedRepository<SavingGoal> SavingGoals { get; }
         public IUserRelatedRepository<SavingContribution> SavingContributions { get; }
         public IUserRelatedRepository<Transfer> Transfers { get; }
@@ -36,6 +38,8 @@ namespace ExpenseTracker.Infrastructure
             Incomes = new UserRelatedRepository<Income>(_context, _currentUserServices);
             PlannedTransactions = new UserRelatedRepository<PlannedTransaction>(_context, _currentUserServices);
             PlannedOccurrences = new UserRelatedRepository<PlannedOccurrence>(_context, _currentUserServices);
+            Reimbursements = new UserRelatedRepository<Reimbursement>(_context, _currentUserServices);
+            ReimbursementSettlements = new UserRelatedRepository<ReimbursementSettlement>(_context, _currentUserServices);
             SavingGoals = new UserRelatedRepository<SavingGoal>(_context, _currentUserServices);
             SavingContributions = new UserRelatedRepository<SavingContribution>(_context, _currentUserServices);
             Transfers = new UserRelatedRepository<Transfer>(_context, _currentUserServices);

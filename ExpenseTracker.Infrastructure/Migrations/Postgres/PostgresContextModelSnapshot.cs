@@ -546,6 +546,79 @@ namespace ExpenseTracker.Infrastructure.Migrations.Postgres
                     b.ToTable("PushSubscriptions");
                 });
 
+            modelBuilder.Entity("ExpenseTracker.Domain.Entities.Reimbursement", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal>("ExpectedAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<Guid>("ExpenseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ExpenseId")
+                        .IsUnique();
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("Reimbursements");
+                });
+
+            modelBuilder.Entity("ExpenseTracker.Domain.Entities.ReimbursementSettlement", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("AccountId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<Guid>("ReimbursementId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AccountId");
+
+                    b.HasIndex("ReimbursementId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("ReimbursementSettlements");
+                });
+
             modelBuilder.Entity("ExpenseTracker.Domain.Entities.SavingContribution", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1200,6 +1273,48 @@ namespace ExpenseTracker.Infrastructure.Migrations.Postgres
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("ExpenseTracker.Domain.Entities.Reimbursement", b =>
+                {
+                    b.HasOne("ExpenseTracker.Domain.Entities.Expense", "Expense")
+                        .WithOne("Reimbursement")
+                        .HasForeignKey("ExpenseTracker.Domain.Entities.Reimbursement", "ExpenseId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ExpenseTracker.Domain.Entities.User.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Expense");
+                });
+
+            modelBuilder.Entity("ExpenseTracker.Domain.Entities.ReimbursementSettlement", b =>
+                {
+                    b.HasOne("ExpenseTracker.Domain.Entities.Account", "Account")
+                        .WithMany()
+                        .HasForeignKey("AccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ExpenseTracker.Domain.Entities.Reimbursement", "Reimbursement")
+                        .WithMany("Settlements")
+                        .HasForeignKey("ReimbursementId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ExpenseTracker.Domain.Entities.User.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Account");
+
+                    b.Navigation("Reimbursement");
+                });
+
             modelBuilder.Entity("ExpenseTracker.Domain.Entities.SavingContribution", b =>
                 {
                     b.HasOne("ExpenseTracker.Domain.Entities.SavingGoal", "SavingGoal")
@@ -1376,9 +1491,19 @@ namespace ExpenseTracker.Infrastructure.Migrations.Postgres
                     b.Navigation("SavingGoals");
                 });
 
+            modelBuilder.Entity("ExpenseTracker.Domain.Entities.Expense", b =>
+                {
+                    b.Navigation("Reimbursement");
+                });
+
             modelBuilder.Entity("ExpenseTracker.Domain.Entities.PlannedTransaction", b =>
                 {
                     b.Navigation("Occurrences");
+                });
+
+            modelBuilder.Entity("ExpenseTracker.Domain.Entities.Reimbursement", b =>
+                {
+                    b.Navigation("Settlements");
                 });
 
             modelBuilder.Entity("ExpenseTracker.Domain.Entities.SavingGoal", b =>

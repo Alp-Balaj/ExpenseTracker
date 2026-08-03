@@ -25,6 +25,9 @@ namespace ExpenseTracker.Infrastructure.Persistence
         public DbSet<PlannedTransaction> PlannedTransactions { get; set; }
         public DbSet<PlannedOccurrence> PlannedOccurrences { get; set; }
         public DbSet<PushSubscription> PushSubscriptions { get; set; }
+        // Stream R: split bills. Amounts only — there is no debtor here.
+        public DbSet<Reimbursement> Reimbursements { get; set; }
+        public DbSet<ReimbursementSettlement> ReimbursementSettlements { get; set; }
         // Stream P: the deployment's own bookkeeping, not a user's — see ScheduledJobRun.
         public DbSet<ScheduledJobRun> ScheduledJobRuns { get; set; }
         public DbSet<SavingGoal> SavingGoals { get; set; }
