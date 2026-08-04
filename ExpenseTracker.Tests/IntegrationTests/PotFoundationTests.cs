@@ -108,17 +108,33 @@ public sealed class PotFoundationTests
         Assert.Equal(1, pot.GetProperty("memberCount").GetInt32());
     }
 
+    /// <summary>
+    /// W1 asserted the opposite of this: that a pot carried no money at all, so
+    /// that money could not arrive without the invariant that keeps it honest.
+    /// W2 is the wave that brings both, so the pin moves rather than
+    /// disappearing — a new pot now carries a balance, and the thing worth
+    /// pinning is that it starts at nothing and that W3's vocabulary has still
+    /// not leaked backwards.
+    /// </summary>
     [Fact]
-    public async Task A_pot_holds_no_money_in_this_wave()
+    public async Task A_new_pot_starts_empty_and_carries_no_settlement()
     {
         var (alp, _) = await PotFixture.TwoUsersAsync(_factory);
         var pot = await PotFixture.CreatePotAsync(alp.Client, "Flat");
 
-        // W1 ships the group and nothing else. If one of these ever appears it
-        // arrived from W2, and it arrived without the Σ Bᵢ invariant that is
-        // supposed to come with it.
-        foreach (var absent in new[] { "balance", "position", "positions", "shares", "topUps", "withdrawals" })
-            Assert.False(pot.TryGetProperty(absent, out _), $"W1's pot must not carry '{absent}'.");
+        Assert.Equal(0m, pot.GetProperty("balance").GetDecimal());
+        Assert.Equal(0m, pot.GetProperty("yourPosition").GetDecimal());
+        // A plain comparison, and true here because an empty pot is below its
+        // €50 line. The *alert* — fires once on crossing downward, re-arms only
+        // after the balance climbs back — is W4's, and it needs this state to
+        // read; W2 exposes the state and does not notify anybody about it.
+        Assert.True(pot.GetProperty("isLow").GetBoolean());
+
+        // W2 ships the ledger and stops there. If one of these ever appears it
+        // arrived from W3, and it arrived without the two-phase cross-user write
+        // that is supposed to come with it.
+        foreach (var absent in new[] { "settlements", "owes", "owed", "inbox", "pending" })
+            Assert.False(pot.TryGetProperty(absent, out _), $"W2's pot must not carry '{absent}'.");
     }
 
     [Fact]

@@ -34,6 +34,10 @@ namespace ExpenseTracker.Application.DependencyInjection
             // skipping that step fails at the database rather than cascading a
             // group's history away.
             services.AddScoped<IPotService, PotService>();
+            // Cycle U W2: the ledger. Separate from IPotService because the
+            // group and its money are separate concerns — W1's service is about
+            // who is in a pot, this one is about what is in it and whose it is.
+            services.AddScoped<IPotLedgerService, PotLedgerService>();
 
             return services;
         }

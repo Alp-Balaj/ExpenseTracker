@@ -13,11 +13,16 @@ public sealed class BudgetService : IBudgetService
 
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICurrencyConversionService _conversion;
+    private readonly IPotRepository _pots;
 
-    public BudgetService(IUnitOfWork unitOfWork, ICurrencyConversionService conversion)
+    public BudgetService(
+        IUnitOfWork unitOfWork,
+        ICurrencyConversionService conversion,
+        IPotRepository pots)
     {
         _unitOfWork = unitOfWork;
         _conversion = conversion;
+        _pots = pots;
     }
 
     public async Task<IReadOnlyList<BudgetStatusDTO>> GetStatusAsync(int year, int month, CancellationToken cancellationToken = default)
@@ -47,6 +52,32 @@ public sealed class BudgetService : IBudgetService
                 Total = g.Sum(e => e.Amount - (e.Reimbursement == null ? 0m : e.Reimbursement.ExpectedAmount))
             })
             .ToListAsync(cancellationToken);
+
+        // Cycle U W2: the user's share of what their pots spent, in the month
+        // the pot expense is dated — not the month it was typed, and not the
+        // month anybody settles up in. Exactly the discipline the line above
+        // applies to a split bill, one scale out: a top-up moves no budget
+        // because nothing has been consumed yet, and the share does because
+        // something has.
+        //
+        // Grouped by the pot's currency, then converted through this user's own
+        // rates by the same converter as everything else — group screens never
+        // convert, but a budget is not a group screen.
+        //
+        // A user in no pots has no shares, so this list is empty and every
+        // figure below is to the cent what it was before this wave.
+        var potShare = await _pots.SharesOfCurrentUser()
+            .Where(s => s.PotExpense.Date >= firstDay && s.PotExpense.Date < firstDayOfNextMonth)
+            .GroupBy(s => new { s.CategoryId, Code = s.Pot.CurrencyCode })
+            .Select(g => new
+            {
+                g.Key.CategoryId,
+                g.Key.Code,
+                Total = g.Sum(s => s.Amount)
+            })
+            .ToListAsync(cancellationToken);
+
+        monthSpend = monthSpend.Concat(potShare).ToList();
 
         var categories = (await _unitOfWork.Categories.GetAllUserDataAsync(cancellationToken))
             .ToDictionary(c => c.Id);

@@ -24,6 +24,25 @@ namespace ExpenseTracker.Application.DTOs
 
         /// <summary>The reading member's own membership id — what the UI marks as "you".</summary>
         public Guid MembershipId { get; set; }
+
+        /// <summary>
+        /// W2: the cash in the pot, in <see cref="CurrencyCode"/> and never
+        /// converted. Summed from the ledger rows on every read rather than
+        /// stored, which is why nothing in this cycle needs a concurrency token
+        /// and why the figure cannot drift from the rows behind it.
+        /// </summary>
+        public decimal Balance { get; set; }
+
+        /// <summary>
+        /// W2: the reader's own standing — <c>topups + outOfPocket − shares −
+        /// withdrawals</c>. Positive means the pot is holding money that is
+        /// still theirs; negative means they have consumed more than they put
+        /// in. The full per-member breakdown is on the ledger endpoint.
+        /// </summary>
+        public decimal YourPosition { get; set; }
+
+        /// <summary>True when the pot has a threshold set and has fallen below it. W4 acts on it.</summary>
+        public bool IsLow { get; set; }
     }
 
     public class CreatePotDTO

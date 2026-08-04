@@ -217,6 +217,147 @@ public static class PotFixture
         }
     }
 
+    // ── W2, the ledger ─────────────────────────────────────────────────────────
+    //
+    // Every write answers with the whole fresh ledger, so these return it and
+    // the tests read their assertions straight off the response rather than
+    // re-fetching. That is not only convenience: it is how a test can tell that
+    // the numbers a member sees immediately after acting are the right ones.
+
+    public static async Task<JsonElement> LedgerAsync(HttpClient client, Guid potId)
+    {
+        var response = await client.GetAsync($"/api/Pot/{potId}/ledger");
+        response.EnsureSuccessStatusCode();
+        return await ReadAsync(response);
+    }
+
+    public static decimal BalanceOf(JsonElement ledger) =>
+        ledger.GetProperty("balance").GetDecimal();
+
+    /// <summary>Every member's position, keyed by display name — which is how a test knows who is who.</summary>
+    public static IReadOnlyDictionary<string, decimal> PositionsOf(JsonElement ledger) =>
+        ledger.GetProperty("positions")
+              .EnumerateArray()
+              .ToDictionary(
+                  p => p.GetProperty("displayName").GetString()!,
+                  p => p.GetProperty("position").GetDecimal());
+
+    public static IReadOnlyList<JsonElement> EntriesOf(JsonElement ledger) =>
+        ledger.GetProperty("entries").EnumerateArray().ToList();
+
+    public static Task<HttpResponseMessage> TopUpAsync(
+        HttpClient client, Guid potId, decimal amount, Guid sourceAccountId,
+        string? date = null, string? note = null) =>
+        client.PostAsJsonAsync($"/api/Pot/{potId}/topups", new { amount, sourceAccountId, date, note });
+
+    public static async Task<JsonElement> TopUpExpectingSuccessAsync(
+        HttpClient client, Guid potId, decimal amount, Guid sourceAccountId,
+        string? date = null, string? note = null)
+    {
+        var response = await TopUpAsync(client, potId, amount, sourceAccountId, date, note);
+        Assert.True(response.IsSuccessStatusCode,
+            $"top-up failed: {response.StatusCode} {await response.Content.ReadAsStringAsync()}");
+        return await ReadAsync(response);
+    }
+
+    /// <summary>
+    /// A pot expense. <paramref name="shares"/> is one entry per participant:
+    /// a null amount means "take an even slice of what is left", which is what
+    /// "everyone", "a subset" and "just one person" all send.
+    /// </summary>
+    public static Task<HttpResponseMessage> LogExpenseAsync(
+        HttpClient client, Guid potId, decimal amount,
+        IEnumerable<(Guid MembershipId, decimal? Amount)> shares,
+        string title = "Groceries", string? date = null, Guid? paidFromAccountId = null) =>
+        client.PostAsJsonAsync($"/api/Pot/{potId}/expenses", new
+        {
+            title,
+            amount,
+            date,
+            paidFromAccountId,
+            shares = shares.Select(s => new { membershipId = s.MembershipId, amount = s.Amount }).ToList()
+        });
+
+    public static async Task<JsonElement> LogExpenseExpectingSuccessAsync(
+        HttpClient client, Guid potId, decimal amount,
+        IEnumerable<(Guid MembershipId, decimal? Amount)> shares,
+        string title = "Groceries", string? date = null, Guid? paidFromAccountId = null)
+    {
+        var response = await LogExpenseAsync(client, potId, amount, shares, title, date, paidFromAccountId);
+        Assert.True(response.IsSuccessStatusCode,
+            $"expense failed: {response.StatusCode} {await response.Content.ReadAsStringAsync()}");
+        return await ReadAsync(response);
+    }
+
+    /// <summary>The common shape: split evenly across everybody named.</summary>
+    public static IEnumerable<(Guid, decimal?)> Evenly(params Guid[] membershipIds) =>
+        membershipIds.Select(id => (id, (decimal?)null));
+
+    public static Task<HttpResponseMessage> DeleteExpenseAsync(HttpClient client, Guid potId, Guid expenseId) =>
+        client.DeleteAsync($"/api/Pot/{potId}/expenses/{expenseId}");
+
+    public static Task<HttpResponseMessage> WithdrawAsync(
+        HttpClient client, Guid potId, decimal amount, Guid destinationAccountId, string? note = null) =>
+        client.PostAsJsonAsync($"/api/Pot/{potId}/withdrawals",
+            new { amount, destinationAccountId, note });
+
+    public static async Task<JsonElement> WithdrawExpectingSuccessAsync(
+        HttpClient client, Guid potId, decimal amount, Guid destinationAccountId, string? note = null)
+    {
+        var response = await WithdrawAsync(client, potId, amount, destinationAccountId, note);
+        Assert.True(response.IsSuccessStatusCode,
+            $"withdrawal failed: {response.StatusCode} {await response.Content.ReadAsStringAsync()}");
+        return await ReadAsync(response);
+    }
+
+    /// <summary>
+    /// A member's own membership id in a pot — what the attribution picker sends
+    /// and what every share is keyed on.
+    /// </summary>
+    public static async Task<Guid> MyMembershipIdAsync(HttpClient client, Guid potId) =>
+        (await ReadAsync(await GetPotAsync(client, potId))).GetProperty("membershipId").GetGuid();
+
+    /// <summary>
+    /// A funded account for a member, in the pot's currency, so top-ups have
+    /// somewhere to come from. Returns the account id.
+    /// </summary>
+    public static async Task<Guid> FundedAccountAsync(
+        HttpClient client, decimal balance = 10_000m, string currencyCode = "EUR")
+    {
+        var currencyId = await ApiClient.CreateCurrencyAsync(client, currencyCode);
+        return await ApiClient.CreateAccountAsync(client, currencyId, balance, name: $"{currencyCode} account");
+    }
+
+    /// <summary>
+    /// <b>The assertion this whole wave exists for.</b>
+    ///
+    /// <para>
+    /// <c>Σ Bᵢ ≡ pot cash balance</c> — every member's position added together
+    /// is exactly the money in the pot. It holds because out-of-pocket payments
+    /// cancel (a contribution and a consumption in one gesture) and because
+    /// every expense's shares sum to the expense to the cent. If it ever drifts,
+    /// something double-counted, and the positions have stopped describing the
+    /// pot's real money.
+    /// </para>
+    ///
+    /// <para>
+    /// Asserted with <c>Assert.Equal</c> on decimals and no tolerance, on
+    /// purpose. A tolerance would be admitting the arithmetic is approximate,
+    /// and it is not: the allocator works in integer cents precisely so that
+    /// this comparison can be exact.
+    /// </para>
+    /// </summary>
+    public static void AssertInvariant(JsonElement ledger, string context = "")
+    {
+        var balance = BalanceOf(ledger);
+        var positions = ledger.GetProperty("positions")
+                              .EnumerateArray()
+                              .Sum(p => p.GetProperty("position").GetDecimal());
+
+        Assert.True(balance == positions,
+            $"Σ Bᵢ = {positions} but the pot holds {balance}{(context.Length > 0 ? $" — {context}" : "")}");
+    }
+
     public static async Task<JsonElement> ReadAsync(HttpResponseMessage response) =>
         await response.Content.ReadFromJsonAsync<JsonElement>();
 

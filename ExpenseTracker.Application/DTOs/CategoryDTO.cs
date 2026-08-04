@@ -1,6 +1,7 @@
 ﻿using ExpenseTracker.Application.Validation;
 using ExpenseTracker.Shared.Enums;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace ExpenseTracker.Application.DTOs
 {
@@ -19,6 +20,29 @@ namespace ExpenseTracker.Application.DTOs
 
         [MaxLength(20)]
         public string? Color { get; set; }
+
+        /// <summary>
+        /// Cycle U W2: set only on the reserved "Shared" category, so the UI can
+        /// badge it and hide its delete button.
+        ///
+        /// <para>
+        /// <b>Read-only.</b> <c>CategoryMapping</c> writes it out and never maps
+        /// it back in, so a client cannot promote its own category into a system
+        /// one, nor demote the system one to slip past the delete guard.
+        /// </para>
+        ///
+        /// <para>
+        /// <b>Omitted from the payload when null</b>, which is every category a
+        /// user made and therefore every category a user in no pots has. That
+        /// keeps the category list byte-for-byte what it was before this wave
+        /// for anybody who has never joined a pot — the cycle's second rule,
+        /// which a uniformly-added <c>"systemKind": null</c> would have broken
+        /// for every user in the application to describe one row that only some
+        /// of them have.
+        /// </para>
+        /// </summary>
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public CategorySystemKind? SystemKind { get; set; }
     }
 
     public class CategorySummaryDTO
@@ -36,6 +60,14 @@ namespace ExpenseTracker.Application.DTOs
         public decimal TotalAmount { get; set; }
 
         public string? Color { get; set; }
+
+        /// <summary>
+        /// Cycle U W2. Set only on the reserved "Shared" category and omitted
+        /// entirely otherwise — see <see cref="CategoryDTO.SystemKind"/> for why
+        /// the null case has to leave no trace in the payload.
+        /// </summary>
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public CategorySystemKind? SystemKind { get; set; }
 
         /// <summary>Per-currency totals for this category.</summary>
         public IReadOnlyList<CurrencySubtotalDTO> Subtotals { get; set; } = [];

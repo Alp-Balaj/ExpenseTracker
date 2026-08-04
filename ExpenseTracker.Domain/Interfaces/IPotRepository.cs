@@ -81,6 +81,73 @@ namespace ExpenseTracker.Domain.Interfaces
         /// <summary>Pots that user opened, tracked. Anonymizing clears the creator reference.</summary>
         Task<IReadOnlyList<Pot>> PotsCreatedByAsync(string userId, CancellationToken cancellationToken = default);
 
+        // ── W2, the ledger ─────────────────────────────────────────────────────
+
+        /// <summary>Top-ups into a pot the user belongs to. Empty for a non-member.</summary>
+        IQueryable<PotTopUp> TopUpsIn(Guid potId);
+
+        /// <summary>Expenses of a pot the user belongs to. Empty for a non-member.</summary>
+        IQueryable<PotExpense> ExpensesIn(Guid potId);
+
+        /// <summary>Every share written in a pot the user belongs to. Empty for a non-member.</summary>
+        IQueryable<PotExpenseShare> SharesIn(Guid potId);
+
+        /// <summary>Withdrawals out of a pot the user belongs to. Empty for a non-member.</summary>
+        IQueryable<PotWithdrawal> WithdrawalsIn(Guid potId);
+
+        /// <summary>
+        /// One expense with its shares loaded and tracked, or null when it is not
+        /// in a pot the caller is a member of. Deleting reverses the pot's debit
+        /// and every share in one transaction, so both have to arrive together.
+        /// </summary>
+        Task<PotExpense?> FindExpenseWithSharesAsync(
+            Guid potId, Guid expenseId, CancellationToken cancellationToken = default);
+
+        /// <summary>Removes a pot row. Only the ledger writes need it, and only for a pot expense and its shares.</summary>
+        void Remove<T>(T entity) where T : PotEntity;
+
+        void RemoveRange<T>(IEnumerable<T> entities) where T : PotEntity;
+
+        /// <summary>
+        /// Every share belonging to the current user, across every pot, with the
+        /// expense and the pot's currency alongside. Untracked.
+        /// <para>
+        /// <b>The one read here scoped by identity rather than by membership</b>,
+        /// and the exception is deliberate. Every other method answers a group
+        /// question — "what does this pot look like to somebody in it" — and
+        /// stops at the edge of a pot you have left. This one answers a personal
+        /// question: what did <i>I</i> consume, for my own budget and my own
+        /// category totals. Money you spent in July is still money you spent
+        /// after you leave the pot in August, so the filter is
+        /// <c>Membership.UserId == currentUser</c> with no <c>LeftAt</c> clause —
+        /// and it can only ever return the caller's own rows, which is why
+        /// widening it that way discloses nothing.
+        /// </para>
+        /// </summary>
+        IQueryable<PotExpenseShare> SharesOfCurrentUser();
+
+        /// <summary>
+        /// The cash balance and the caller's own position for every pot they are
+        /// in, in a fixed number of grouped aggregates rather than one pass per
+        /// pot.
+        /// <para>
+        /// The pots list shows both, and a per-pot loop here would put a query
+        /// count on a page behind the number of groups somebody belongs to. The
+        /// detail screen's full ledger is loaded row by row for a different
+        /// reason — it has to show the entries anyway, and its positions have to
+        /// come from exactly those rows.
+        /// </para>
+        /// </summary>
+        Task<IReadOnlyDictionary<Guid, PotMoney>> MoneyForMemberPotsAsync(
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Whether any pot expense share anywhere still points at that category.
+        /// The "Shared" category's delete guard, asked as the sentence the
+        /// contract states it in.
+        /// </summary>
+        Task<bool> AnySharesInCategoryAsync(Guid categoryId, CancellationToken cancellationToken = default);
+
         void Add<T>(T entity) where T : PotEntity;
         void Update<T>(T entity) where T : PotEntity;
 

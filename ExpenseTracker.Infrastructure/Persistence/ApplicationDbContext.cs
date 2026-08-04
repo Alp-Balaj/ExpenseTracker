@@ -34,6 +34,13 @@ namespace ExpenseTracker.Infrastructure.Persistence
         public DbSet<PotMembership> PotMemberships { get; set; }
         public DbSet<PotInvite> PotInvites { get; set; }
         public DbSet<PotActivity> PotActivities { get; set; }
+        // Cycle U W2: the ledger. Four more non-user-owned tables, on the same
+        // terms — and the rows that make Σ Bᵢ ≡ the pot's cash balance a
+        // statement about the database rather than about a cache.
+        public DbSet<PotTopUp> PotTopUps { get; set; }
+        public DbSet<PotExpense> PotExpenses { get; set; }
+        public DbSet<PotExpenseShare> PotExpenseShares { get; set; }
+        public DbSet<PotWithdrawal> PotWithdrawals { get; set; }
         // Stream R: split bills. Amounts only — there is no debtor here.
         public DbSet<Reimbursement> Reimbursements { get; set; }
         public DbSet<ReimbursementSettlement> ReimbursementSettlements { get; set; }

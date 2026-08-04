@@ -16,5 +16,12 @@ namespace ExpenseTracker.Shared.Enums
         MemberJoined = 5,
         MemberLeft = 6,
         MemberAnonymized = 7,
+
+        // W2 — the ledger. Money moving is the most member-visible thing a pot
+        // can do, so each of the four operations gets its own line.
+        ToppedUp = 8,
+        ExpenseLogged = 9,
+        ExpenseDeleted = 10,
+        Withdrew = 11,
     }
 }
