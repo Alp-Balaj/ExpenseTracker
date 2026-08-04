@@ -74,6 +74,13 @@ public static class DependencyInjection
         // demo-data fabrication can reuse it for any user id.
         services.AddScoped<IUserDataSeeder, UserDataSeeder>();
 
+        // Cycle U W2: the reserved "Shared" category. Here rather than in
+        // Application, and on ApplicationDbContext rather than IUnitOfWork, for
+        // the same reason UserDataSeeder is — it has to write a category row for
+        // a user who is not the caller, which every user-scoped abstraction in
+        // the app correctly refuses to do.
+        services.AddScoped<ISharedCategoryService, SharedCategoryService>();
+
         #region Stream P — background scheduler and Web Push
         services.Configure<SchedulerOptions>(configuration.GetSection(SchedulerOptions.SectionName));
         services.Configure<PushOptions>(configuration.GetSection(PushOptions.SectionName));

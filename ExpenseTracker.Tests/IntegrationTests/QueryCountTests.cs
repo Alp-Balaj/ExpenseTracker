@@ -103,10 +103,16 @@ public sealed class QueryCountTests
 
         var (queries, _) = await MeasureAsync(client, "/api/Budget/status?month=2026-01");
 
-        // 5: budgets, the month's spend grouped in SQL, categories, and the
-        // converter's two. The month filter used to run in memory over every
-        // expense the user had ever recorded.
-        Assert.True(queries <= 5, $"budget status took {queries} queries");
+        // 6: budgets, the month's spend grouped in SQL, the same month's pot
+        // shares grouped in SQL (Cycle U W2), categories, and the converter's
+        // two. The month filter used to run in memory over every expense the
+        // user had ever recorded.
+        //
+        // The bound moved from 5 to 6 when the pot share became a term in a
+        // budget. That is a second fixed aggregate and not a per-row cost — this
+        // user is in no pots at all, and it still costs exactly one query, which
+        // is the property the bound is here to protect.
+        Assert.True(queries <= 6, $"budget status took {queries} queries");
     }
 
     [Fact]

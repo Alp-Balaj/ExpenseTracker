@@ -19,7 +19,9 @@ namespace ExpenseTracker.Application.Mapping
                 Name = entity.Name,
                 Description = entity.Description,
                 CategoryType = (int)entity.CategoryType,
-                Color = entity.Color
+                Color = entity.Color,
+                // Cycle U W2. Out only: see the three notes below.
+                SystemKind = entity.SystemKind
             };
         }
         public static Category ToEntity(this CategoryDTO dto)
@@ -32,6 +34,10 @@ namespace ExpenseTracker.Application.Mapping
                 Description = dto.Description,
                 CategoryType = (CategoryType)dto.CategoryType,
                 Color = dto.Color
+                // SystemKind is deliberately absent. It is the application's
+                // mark on its own row, not a field a client owns — a POST that
+                // set it could mint an undeletable category, which is a small
+                // thing to be able to do and an annoying one to undo.
             };
         }
         public static void Apply(this Category entity, CategoryDTO dto)
@@ -40,6 +46,11 @@ namespace ExpenseTracker.Application.Mapping
             entity.Description = dto.Description;
             entity.CategoryType = (CategoryType)dto.CategoryType;
             entity.Color = dto.Color;
+            // SystemKind is not applied, so an update cannot clear the mark and
+            // walk past the delete guard. Renaming and recolouring the "Shared"
+            // category stay available — it lives in the user's own taxonomy, and
+            // the only thing reserved about it is that it cannot be removed
+            // while their pot spending still points at it.
         }
     }
 }

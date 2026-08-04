@@ -49,11 +49,16 @@ namespace ExpenseTracker.Application.Services
 
         private readonly IPotRepository _pots;
         private readonly ICurrentUserServices _user;
+        private readonly ISharedCategoryService _sharedCategories;
 
-        public PotService(IPotRepository pots, ICurrentUserServices user)
+        public PotService(
+            IPotRepository pots,
+            ICurrentUserServices user,
+            ISharedCategoryService sharedCategories)
         {
             _pots = pots;
             _user = user;
+            _sharedCategories = sharedCategories;
         }
 
         // ── Reading ────────────────────────────────────────────────────────────
@@ -65,9 +70,13 @@ namespace ExpenseTracker.Application.Services
                                   .ThenBy(p => p.Id)
                                   .ToListAsync(cancellationToken);
 
+            // W2: every pot's balance and the reader's position, in a fixed
+            // number of grouped aggregates rather than one pass per pot.
+            var money = await _pots.MoneyForMemberPotsAsync(cancellationToken);
+
             var result = new List<PotDTO>(pots.Count);
             foreach (var pot in pots)
-                result.Add(await ToDtoAsync(pot, cancellationToken));
+                result.Add(await ToDtoAsync(pot, money, cancellationToken));
 
             return result;
         }
@@ -75,7 +84,9 @@ namespace ExpenseTracker.Application.Services
         public async Task<PotDTO?> GetPotAsync(Guid potId, CancellationToken cancellationToken = default)
         {
             var pot = await _pots.FindMemberPotAsync(potId, cancellationToken);
-            return pot is null ? null : await ToDtoAsync(pot, cancellationToken);
+            if (pot is null) return null;
+
+            return await ToDtoAsync(pot, await _pots.MoneyForMemberPotsAsync(cancellationToken), cancellationToken);
         }
 
         public async Task<IReadOnlyList<PotMemberDTO>?> GetMembersAsync(Guid potId, CancellationToken cancellationToken = default)
@@ -149,9 +160,16 @@ namespace ExpenseTracker.Application.Services
             _pots.Add(membership);
             _pots.Add(Entry(pot, membership, PotActivityKind.PotCreated, pot.Id, name, after: name));
 
+            // W2: opening a pot is joining one, so it is where the reserved
+            // "Shared" category appears for a user who has never been in a group
+            // before. Added and not saved — the SaveAsync below flushes both, so
+            // a failed create cannot leave a user in no pots holding the
+            // category that says otherwise.
+            await _sharedCategories.EnsureForCurrentUserAsync(cancellationToken);
+
             await _pots.SaveAsync(cancellationToken);
 
-            return await ToDtoAsync(pot, cancellationToken);
+            return await ToDtoAsync(pot, await _pots.MoneyForMemberPotsAsync(cancellationToken), cancellationToken);
         }
 
         public async Task<PotDTO?> UpdatePotAsync(Guid potId, UpdatePotDTO dto, CancellationToken cancellationToken = default)
@@ -186,7 +204,7 @@ namespace ExpenseTracker.Application.Services
             _pots.Update(pot);
             await _pots.SaveAsync(cancellationToken);
 
-            return await ToDtoAsync(pot, cancellationToken);
+            return await ToDtoAsync(pot, await _pots.MoneyForMemberPotsAsync(cancellationToken), cancellationToken);
         }
 
         // ── Invites ────────────────────────────────────────────────────────────
@@ -326,6 +344,11 @@ namespace ExpenseTracker.Application.Services
                 _pots.Add(Entry(pot, membership, PotActivityKind.MemberJoined, membership.Id, membership.DisplayName));
             }
 
+            // W2: the reserved "Shared" category, on first join and only on a
+            // join. Idempotent, so rejoining does not add a second, and inside
+            // the same flush as the membership for the reason above.
+            await _sharedCategories.EnsureForCurrentUserAsync(cancellationToken);
+
             await _pots.SaveAsync(cancellationToken);
 
             return (await GetPotAsync(invite.PotId, cancellationToken), null);
@@ -430,10 +453,15 @@ namespace ExpenseTracker.Application.Services
             return null;
         }
 
-        private async Task<PotDTO> ToDtoAsync(Pot pot, CancellationToken cancellationToken)
+        private async Task<PotDTO> ToDtoAsync(
+            Pot pot, IReadOnlyDictionary<Guid, PotMoney> money, CancellationToken cancellationToken)
         {
             var members = await _pots.MembershipsIn(pot.Id).ToListAsync(cancellationToken);
             var userId = _user.UserId;
+
+            // Absent means no ledger rows yet, which is a balance of zero rather
+            // than an unknown.
+            var potMoney = money.TryGetValue(pot.Id, out var m) ? m : default;
 
             var mine = members.FirstOrDefault(m => m.UserId == userId && m.LeftAt is null);
             var creator = pot.CreatedByUserId is null
@@ -450,6 +478,9 @@ namespace ExpenseTracker.Application.Services
                 CreatedByDisplayName = creator?.DisplayName,
                 MemberCount = members.Count(m => m.LeftAt is null),
                 MembershipId = mine?.Id ?? Guid.Empty,
+                Balance = potMoney.Balance,
+                YourPosition = potMoney.YourPosition,
+                IsLow = pot.LowBalanceThreshold > 0m && potMoney.Balance < pot.LowBalanceThreshold,
             };
         }
 

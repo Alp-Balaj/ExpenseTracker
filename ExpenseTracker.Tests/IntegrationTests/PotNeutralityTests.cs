@@ -1,4 +1,6 @@
 using System.Net.Http.Json;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using ExpenseTracker.Tests.Helpers;
 using ExpenseTracker.Tests.Infrastructure;
@@ -119,8 +121,14 @@ public sealed class PotNeutralityTests
         AssertIdentical(before, await SnapshotAsync(bystander.Client));
     }
 
+    /// <summary>
+    /// W1 asserted that joining changed nothing whatsoever, and named the one
+    /// thing that would change it: "the reserved 'Shared' category that does
+    /// appear on first join is W2's". This is that wave, so the pin narrows to
+    /// exactly that — one category appears, and not one number moves.
+    /// </summary>
     [Fact]
-    public async Task Joining_a_pot_changes_none_of_your_own_numbers()
+    public async Task Joining_a_pot_adds_the_shared_category_and_moves_no_number()
     {
         var (alp, mara) = await PotFixture.TwoUsersAsync(_factory);
 
@@ -142,11 +150,41 @@ public sealed class PotNeutralityTests
         await PotFixture.JoinExpectingSuccessAsync(
             mara.Client, await PotFixture.InviteCodeAsync(alp.Client, potId));
 
-        // A pot with no money in it moves nothing personal — not the balance,
-        // not the budget, and in particular not the category list. The reserved
-        // "Shared" category that does appear on first join is W2's, and a member
-        // seeing it a wave early would mean W2 leaked backwards.
-        AssertIdentical(before, await SnapshotAsync(mara.Client));
+        var after = await SnapshotAsync(mara.Client);
+
+        // Everything is still byte-identical apart from the two payloads that
+        // enumerate categories — the list itself, and the JSON export that
+        // carries a copy of it. Those are exempted here and asserted precisely
+        // below and in the next test; a blanket exemption would let a real
+        // change hide behind it. The CSV export is *not* exempt: it is
+        // transactions, and an empty category has none.
+        foreach (var (route, body) in before)
+        {
+            if (route == "/api/Category") continue;
+
+            var (left, right) = route == "/api/Export/json"
+                ? (WithoutCategories(body), WithoutCategories(after[route]))
+                : (body, after[route]);
+
+            Assert.True(left == right,
+                $"{route} changed.\nBefore: {left}\nAfter:  {right}");
+        }
+
+        // The export gained the category and nothing else — the same one row,
+        // and no money anywhere in it moved.
+        Assert.Contains("\"Shared\"", after["/api/Export/json"]);
+        Assert.DoesNotContain("\"Shared\"", before["/api/Export/json"]);
+
+        // And the category list gained exactly one row, which is the reserved
+        // one, with nothing in it yet.
+        var categories = await CategoriesAsync(mara.Client);
+        var shared = Assert.Single(categories, c => c.TryGetProperty("systemKind", out _));
+
+        Assert.Equal("Shared", shared.GetProperty("name").GetString());
+        Assert.Equal(0m, shared.GetProperty("totalAmount").GetDecimal());
+        Assert.Equal(
+            JsonSerializer.Deserialize<JsonElement>(before["/api/Category"]).GetArrayLength() + 1,
+            categories.Count);
     }
 
     [Fact]
@@ -171,17 +209,57 @@ public sealed class PotNeutralityTests
         }
     }
 
+    /// <summary>
+    /// The other half of the same rule, read from the side that did not change:
+    /// the eleven starter categories are still exactly the eleven starter
+    /// categories, byte for byte, and none of them has learned that this user is
+    /// in a pot. Only the twelfth row is new.
+    /// </summary>
     [Fact]
-    public async Task The_starter_category_list_is_untouched_by_this_wave()
+    public async Task The_starter_category_list_is_untouched_and_carries_no_system_mark()
     {
         var (alp, mara) = await PotFixture.TwoUsersAsync(_factory);
 
-        var before = await mara.Client.GetStringAsync("/api/Category");
+        var before = await CategoriesAsync(mara.Client);
 
         var potId = await PotFixture.CreatePotIdAsync(alp.Client, "Flat");
         await PotFixture.JoinExpectingSuccessAsync(
             mara.Client, await PotFixture.InviteCodeAsync(alp.Client, potId));
 
-        Assert.Equal(before, await mara.Client.GetStringAsync("/api/Category"));
+        var after = await CategoriesAsync(mara.Client);
+
+        // A category the user made carries no systemKind at all — the field is
+        // omitted rather than serialised as null, which is what keeps a user in
+        // no pots seeing the payload they saw before this wave.
+        foreach (var category in before)
+        {
+            Assert.False(category.TryGetProperty("systemKind", out _));
+
+            var same = Assert.Single(after,
+                c => c.GetProperty("id").GetGuid() == category.GetProperty("id").GetGuid());
+
+            Assert.Equal(category.ToString(), same.ToString());
+        }
+
+        Assert.Equal(before.Count + 1, after.Count);
+    }
+
+    /// <summary>
+    /// The JSON export with its category catalogue cut out, so the rest of it —
+    /// every account, every transaction, every figure — can still be compared
+    /// byte for byte across a join that legitimately adds one category.
+    /// </summary>
+    private static string WithoutCategories(string exportJson)
+    {
+        var node = JsonNode.Parse(exportJson)!.AsObject();
+        node.Remove("categories");
+        return node.ToJsonString();
+    }
+
+    private static async Task<IReadOnlyList<JsonElement>> CategoriesAsync(HttpClient client)
+    {
+        var response = await client.GetAsync("/api/Category");
+        response.EnsureSuccessStatusCode();
+        return (await response.Content.ReadFromJsonAsync<JsonElement>()).EnumerateArray().ToList();
     }
 }

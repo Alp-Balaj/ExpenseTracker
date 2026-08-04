@@ -29,10 +29,12 @@ namespace ExpenseTracker.API.Controllers
     public class PotController : ControllerBase
     {
         private readonly IPotService _pots;
+        private readonly IPotLedgerService _ledger;
 
-        public PotController(IPotService pots)
+        public PotController(IPotService pots, IPotLedgerService ledger)
         {
             _pots = pots;
+            _ledger = ledger;
         }
 
         [HttpGet]
@@ -128,5 +130,54 @@ namespace ExpenseTracker.API.Controllers
             var activity = await _pots.GetActivityAsync(id, cancellationToken);
             return activity is null ? NotFound() : Ok(activity);
         }
+
+        #region W2 — the ledger
+        // Every write answers with the whole ledger rather than with the row it
+        // wrote. The balance, the positions and the feed all move on every one
+        // of these, and a client that had to re-fetch to find out would show a
+        // stale figure next to a fresh one for as long as the round trip took —
+        // on the screen whose entire promise is that the numbers agree.
+        //
+        // Deliberately not [Idempotent]: Stream O's outbox is for the personal
+        // quick-add path, and pot expenses are entered from pot screens, online,
+        // because allocating shares needs live membership.
+
+        /// <summary>Balance, every member's position, and the pot's money feed.</summary>
+        [HttpGet("{id:guid}/ledger")]
+        public async Task<IActionResult> GetLedger(Guid id, CancellationToken cancellationToken)
+        {
+            var ledger = await _ledger.GetLedgerAsync(id, cancellationToken);
+            return ledger is null ? NotFound() : Ok(ledger);
+        }
+
+        [HttpPost("{id:guid}/topups")]
+        public Task<IActionResult> TopUp(Guid id, [FromBody] CreatePotTopUpDTO dto, CancellationToken cancellationToken) =>
+            RespondAsync(_ledger.TopUpAsync(id, dto, cancellationToken));
+
+        [HttpPost("{id:guid}/expenses")]
+        public Task<IActionResult> LogExpense(Guid id, [FromBody] CreatePotExpenseDTO dto, CancellationToken cancellationToken) =>
+            RespondAsync(_ledger.LogExpenseAsync(id, dto, cancellationToken));
+
+        [HttpDelete("{id:guid}/expenses/{expenseId:guid}")]
+        public Task<IActionResult> DeleteExpense(Guid id, Guid expenseId, CancellationToken cancellationToken) =>
+            RespondAsync(_ledger.DeleteExpenseAsync(id, expenseId, cancellationToken));
+
+        [HttpPost("{id:guid}/withdrawals")]
+        public Task<IActionResult> Withdraw(Guid id, [FromBody] CreatePotWithdrawalDTO dto, CancellationToken cancellationToken) =>
+            RespondAsync(_ledger.WithdrawAsync(id, dto, cancellationToken));
+
+        /// <summary>
+        /// The ledger's three-way answer, in one place: a sentence is a 400, a
+        /// bare null is the 404 a non-member gets, and anything else is the
+        /// fresh ledger.
+        /// </summary>
+        private static async Task<IActionResult> RespondAsync(Task<(PotLedgerDTO? Ledger, string? Error)> call)
+        {
+            var (ledger, error) = await call;
+
+            if (error != null) return new BadRequestObjectResult(new { message = error });
+            return ledger is null ? new NotFoundResult() : new OkObjectResult(ledger);
+        }
+        #endregion
     }
 }
