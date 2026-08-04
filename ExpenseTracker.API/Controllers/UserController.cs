@@ -32,9 +32,10 @@ namespace ExpenseTracker.API.Controllers
         private readonly IUnitOfWork _unitOfWork;
         private readonly IUserDataSeeder _seeder;
         private readonly IEmailSender _emailSender;
+        private readonly IPotService _pots;
         private readonly ILogger<UserController> _logger;
 
-        public UserController(UserManager<User> userManager, SignInManager<User> signInManager, IConfiguration configuration, IRefreshTokenRepository refreshTokenRepository, IUnitOfWork unitOfWork, IUserDataSeeder seeder, IEmailSender emailSender, ILogger<UserController> logger)
+        public UserController(UserManager<User> userManager, SignInManager<User> signInManager, IConfiguration configuration, IRefreshTokenRepository refreshTokenRepository, IUnitOfWork unitOfWork, IUserDataSeeder seeder, IEmailSender emailSender, IPotService pots, ILogger<UserController> logger)
         {
             _userManager = userManager;
             _signInManager = signInManager;
@@ -43,6 +44,7 @@ namespace ExpenseTracker.API.Controllers
             _unitOfWork = unitOfWork;
             _seeder = seeder;
             _emailSender = emailSender;
+            _pots = pots;
             _logger = logger;
         }
 
@@ -506,6 +508,15 @@ namespace ExpenseTracker.API.Controllers
         /// actually loses years of financial history. Rate-limited on the auth lane
         /// so it cannot be used to test passwords.
         /// </para>
+        /// <para>
+        /// Cycle U adds a pre-step, and the order is not optional. Pot rows are
+        /// <em>not</em> user-owned: <c>PotMembership.UserId</c> is nullable with
+        /// <c>OnDelete(Restrict)</c>, precisely so one member leaving the app
+        /// cannot take the group's history with them. Anonymizing first strips
+        /// this user out of every pot, leaving the rows behind under a neutral
+        /// label; only then can Identity remove the user. Skip the pre-step and
+        /// the delete fails at the foreign key — loudly, which is the intent.
+        /// </para>
         /// </summary>
         [Authorize]
         [HttpPost("delete-account")]
@@ -531,6 +542,14 @@ namespace ExpenseTracker.API.Controllers
             // thing that would still work afterwards.
             await _refreshTokenRepository.RevokeAllActiveForUserAsync(user.Id);
             await _refreshTokenRepository.SaveAsync();
+
+            // Then the pots. This is the anonymize half of anonymize-then-delete:
+            // every membership loses its user id and keeps its row, so the group
+            // still adds up and still reads sensibly. Nothing personal survives
+            // it — the label becomes "Former member".
+            var anonymized = await _pots.AnonymizeMembershipsAsync(user.Id);
+            if (anonymized > 0)
+                _logger.LogInformation("Anonymized {Count} pot membership(s) before deleting user {UserId}", anonymized, user.Id);
 
             var result = await _userManager.DeleteAsync(user);
             if (!result.Succeeded)

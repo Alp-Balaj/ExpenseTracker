@@ -1,5 +1,6 @@
 ﻿using ExpenseTracker.Domain.Entities;
 using ExpenseTracker.Domain.Entities.Common;
+using ExpenseTracker.Domain.Entities.Pots;
 using ExpenseTracker.Domain.Entities.User;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
@@ -25,6 +26,14 @@ namespace ExpenseTracker.Infrastructure.Persistence
         public DbSet<PlannedTransaction> PlannedTransactions { get; set; }
         public DbSet<PlannedOccurrence> PlannedOccurrences { get; set; }
         public DbSet<PushSubscription> PushSubscriptions { get; set; }
+        // Cycle U: the shared pot. These four are the only tables in the model
+        // that are NOT user-owned — they derive from PotEntity, not BaseEntity,
+        // so ConfigureUserOwnership below never touches them and their access
+        // goes through IPotRepository instead of IUserRelatedRepository.
+        public DbSet<Pot> Pots { get; set; }
+        public DbSet<PotMembership> PotMemberships { get; set; }
+        public DbSet<PotInvite> PotInvites { get; set; }
+        public DbSet<PotActivity> PotActivities { get; set; }
         // Stream R: split bills. Amounts only — there is no debtor here.
         public DbSet<Reimbursement> Reimbursements { get; set; }
         public DbSet<ReimbursementSettlement> ReimbursementSettlements { get; set; }
@@ -100,6 +109,15 @@ namespace ExpenseTracker.Infrastructure.Persistence
         private void StampUpdatedAt()
         {
             foreach (var entry in ChangeTracker.Entries<BaseEntity>())
+            {
+                if (entry.State == EntityState.Modified)
+                    entry.Entity.UpdatedAt = DateTime.UtcNow;
+            }
+
+            // Pot rows carry the same two timestamps but share no base type with
+            // user-owned ones, deliberately — so they need their own pass rather
+            // than a wider constraint above.
+            foreach (var entry in ChangeTracker.Entries<PotEntity>())
             {
                 if (entry.State == EntityState.Modified)
                     entry.Entity.UpdatedAt = DateTime.UtcNow;

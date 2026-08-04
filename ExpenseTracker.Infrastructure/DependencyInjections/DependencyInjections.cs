@@ -37,6 +37,10 @@ public static class DependencyInjection
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped(typeof(IUserRelatedRepository<>), typeof(UserRelatedRepository<>));
         services.AddScoped(typeof(IAccountRepository), typeof(AccountRepository));
+        // Cycle U: pot rows are not user-owned, so they get their own repository
+        // rather than a widening of UserRelatedRepository. Its reads are scoped
+        // by "pots this user is currently a member of"; see IPotRepository.
+        services.AddScoped<IPotRepository, PotRepository>();
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
         // Sugg-6: CSV import. In Infrastructure because both phases need the
         // database — duplicate detection reads the account's existing rows, and
