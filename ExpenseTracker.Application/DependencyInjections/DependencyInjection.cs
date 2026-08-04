@@ -28,6 +28,12 @@ namespace ExpenseTracker.Application.DependencyInjection
             // expense write path, so the receivable and the expense that created
             // it can never disagree.
             services.AddScoped<IReimbursementService, ReimbursementService>();
+            // Cycle U W1: the shared pot. Also called from UserController's
+            // account-deletion path, which has to anonymize memberships before
+            // Identity removes the user — the membership FK is Restrict, so
+            // skipping that step fails at the database rather than cascading a
+            // group's history away.
+            services.AddScoped<IPotService, PotService>();
 
             return services;
         }

@@ -492,6 +492,173 @@ namespace ExpenseTracker.Infrastructure.Migrations.Postgres
                     b.ToTable("PlannedTransactions");
                 });
 
+            modelBuilder.Entity("ExpenseTracker.Domain.Entities.Pots.Pot", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedByUserId")
+                        .HasColumnType("text");
+
+                    b.Property<string>("CurrencyCode")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("character varying(3)");
+
+                    b.Property<decimal>("LowBalanceThreshold")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedByUserId");
+
+                    b.ToTable("Pots");
+                });
+
+            modelBuilder.Entity("ExpenseTracker.Domain.Entities.Pots.PotActivity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("ActorMembershipId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("After")
+                        .HasMaxLength(400)
+                        .HasColumnType("character varying(400)");
+
+                    b.Property<string>("Before")
+                        .HasMaxLength(400)
+                        .HasColumnType("character varying(400)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("PotId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("TargetId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("TargetLabel")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ActorMembershipId");
+
+                    b.HasIndex("PotId", "CreatedAt");
+
+                    b.ToTable("PotActivities");
+                });
+
+            modelBuilder.Entity("ExpenseTracker.Domain.Entities.Pots.PotInvite", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("IssuedByMembershipId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("PotId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("RevokedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("RevokedByMembershipId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique();
+
+                    b.HasIndex("IssuedByMembershipId");
+
+                    b.HasIndex("RevokedByMembershipId");
+
+                    b.HasIndex("PotId", "CreatedAt");
+
+                    b.ToTable("PotInvites");
+                });
+
+            modelBuilder.Entity("ExpenseTracker.Domain.Entities.Pots.PotMembership", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("AnonymizedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime?>("LeftAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("PotId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UserId")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PotId", "UserId")
+                        .IsUnique()
+                        .HasFilter("\"UserId\" IS NOT NULL");
+
+                    b.HasIndex("UserId", "LeftAt");
+
+                    b.ToTable("PotMemberships");
+                });
+
             modelBuilder.Entity("ExpenseTracker.Domain.Entities.PushSubscription", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1271,6 +1438,74 @@ namespace ExpenseTracker.Infrastructure.Migrations.Postgres
                     b.Navigation("ToAccount");
                 });
 
+            modelBuilder.Entity("ExpenseTracker.Domain.Entities.Pots.Pot", b =>
+                {
+                    b.HasOne("ExpenseTracker.Domain.Entities.User.User", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("ExpenseTracker.Domain.Entities.Pots.PotActivity", b =>
+                {
+                    b.HasOne("ExpenseTracker.Domain.Entities.Pots.PotMembership", "ActorMembership")
+                        .WithMany()
+                        .HasForeignKey("ActorMembershipId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("ExpenseTracker.Domain.Entities.Pots.Pot", "Pot")
+                        .WithMany("Activity")
+                        .HasForeignKey("PotId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ActorMembership");
+
+                    b.Navigation("Pot");
+                });
+
+            modelBuilder.Entity("ExpenseTracker.Domain.Entities.Pots.PotInvite", b =>
+                {
+                    b.HasOne("ExpenseTracker.Domain.Entities.Pots.PotMembership", "IssuedByMembership")
+                        .WithMany()
+                        .HasForeignKey("IssuedByMembershipId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ExpenseTracker.Domain.Entities.Pots.Pot", "Pot")
+                        .WithMany("Invites")
+                        .HasForeignKey("PotId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ExpenseTracker.Domain.Entities.Pots.PotMembership", "RevokedByMembership")
+                        .WithMany()
+                        .HasForeignKey("RevokedByMembershipId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("IssuedByMembership");
+
+                    b.Navigation("Pot");
+
+                    b.Navigation("RevokedByMembership");
+                });
+
+            modelBuilder.Entity("ExpenseTracker.Domain.Entities.Pots.PotMembership", b =>
+                {
+                    b.HasOne("ExpenseTracker.Domain.Entities.Pots.Pot", "Pot")
+                        .WithMany("Memberships")
+                        .HasForeignKey("PotId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ExpenseTracker.Domain.Entities.User.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Pot");
+                });
+
             modelBuilder.Entity("ExpenseTracker.Domain.Entities.PushSubscription", b =>
                 {
                     b.HasOne("ExpenseTracker.Domain.Entities.User.User", null)
@@ -1514,6 +1749,15 @@ namespace ExpenseTracker.Infrastructure.Migrations.Postgres
             modelBuilder.Entity("ExpenseTracker.Domain.Entities.PlannedTransaction", b =>
                 {
                     b.Navigation("Occurrences");
+                });
+
+            modelBuilder.Entity("ExpenseTracker.Domain.Entities.Pots.Pot", b =>
+                {
+                    b.Navigation("Activity");
+
+                    b.Navigation("Invites");
+
+                    b.Navigation("Memberships");
                 });
 
             modelBuilder.Entity("ExpenseTracker.Domain.Entities.Reimbursement", b =>

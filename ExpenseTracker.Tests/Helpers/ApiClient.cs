@@ -20,9 +20,24 @@ public static class ApiClient
     /// job has to know which id the client it just created belongs to.
     /// </para>
     /// </summary>
-    public sealed record AuthenticatedUser(HttpClient Client, string UserId, string Email);
+    /// <param name="DisplayName">
+    /// The username signup derived from the name — first + last, possibly with
+    /// digits appended to keep it unique. It is what the JWT's unique_name claim
+    /// carries and therefore what a pot freezes as a member's label, so a test
+    /// that asserts what one member sees of another needs it.
+    /// </param>
+    public sealed record AuthenticatedUser(HttpClient Client, string UserId, string Email, string DisplayName);
 
-    public static async Task<AuthenticatedUser> CreateAuthenticatedUserAsync(CustomWebApplicationFactory factory)
+    /// <param name="firstName">
+    /// Cycle U: two users in one test have to be told apart on screen, and
+    /// signup builds the username out of the name. Left at the default, every
+    /// test user is called the same thing, which is fine for a suite where each
+    /// test had exactly one.
+    /// </param>
+    public static async Task<AuthenticatedUser> CreateAuthenticatedUserAsync(
+        CustomWebApplicationFactory factory,
+        string firstName = "Test",
+        string lastName = "User")
     {
         var client = factory.CreateClient();
         var email = $"{Guid.NewGuid():N}@tests.local";
@@ -30,8 +45,8 @@ public static class ApiClient
 
         var signup = await client.PostAsJsonAsync("/api/User/signup", new
         {
-            firstName = "Test",
-            lastName = "User",
+            firstName,
+            lastName,
             email,
             password
         });
@@ -44,15 +59,24 @@ public static class ApiClient
         var token = body.GetProperty("token").GetString()!;
 
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-        return new AuthenticatedUser(client, ReadSubjectClaim(token), email);
+
+        var claims = ReadPayload(token);
+        return new AuthenticatedUser(
+            client,
+            claims.GetProperty("sub").GetString()!,
+            email,
+            claims.GetProperty("unique_name").GetString()!);
     }
 
     /// <summary>
-    /// Pulls <c>sub</c> out of the JWT payload — the claim the bearer middleware
-    /// maps to NameIdentifier, and therefore the id every user-owned row carries.
-    /// Read rather than looked up in the database so the helper needs no scope.
+    /// The JWT payload, unverified — this is a test reading a token the app just
+    /// handed it, not a validation path. <c>sub</c> is the claim the bearer
+    /// middleware maps to NameIdentifier and therefore the id every user-owned
+    /// row carries; <c>unique_name</c> is the username a pot freezes as a
+    /// member's label. Read here rather than looked up in the database so the
+    /// helper needs no service scope.
     /// </summary>
-    private static string ReadSubjectClaim(string token)
+    private static JsonElement ReadPayload(string token)
     {
         var payload = token.Split('.')[1].Replace('-', '+').Replace('_', '/');
         payload = (payload.Length % 4) switch
@@ -63,7 +87,7 @@ public static class ApiClient
         };
 
         using var document = JsonDocument.Parse(Convert.FromBase64String(payload));
-        return document.RootElement.GetProperty("sub").GetString()!;
+        return document.RootElement.Clone();
     }
 
     public static async Task<Guid> CreateCurrencyAsync(HttpClient client, string code = "USD", decimal rate = 1m)
