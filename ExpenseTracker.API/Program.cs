@@ -120,7 +120,24 @@ if (app.Environment.IsDevelopment())
 // sits outside endpoint routing, so [Authorize] never applies to public assets. In local
 // dev wwwroot doesn't exist and both this and the fallback below are no-ops (the Vite dev
 // server on :6969 serves the SPA and talks to this API cross-origin via ReactCors).
-app.UseStaticFiles();
+//
+// Cache policy (Suggestion-12): Vite fingerprints everything under /assets, so those
+// files may be cached forever; everything else — index.html, the service workers, the
+// manifest — is unhashed, and without an explicit no-cache the browser's heuristic
+// caching keeps a stale index.html alive across deploys. A stale index.html asks for
+// chunk names that no longer exist, which surfaces as a blank page on the first
+// refresh after a deploy.
+var spaStaticFiles = new StaticFileOptions
+{
+    OnPrepareResponse = ctx =>
+    {
+        ctx.Context.Response.Headers.CacheControl =
+            ctx.Context.Request.Path.StartsWithSegments("/assets")
+                ? "public, max-age=31536000, immutable"
+                : "no-cache";
+    }
+};
+app.UseStaticFiles(spaStaticFiles);
 
 app.UseCors("ReactCors");
 app.UseAuthentication();
@@ -139,7 +156,9 @@ app.Map("/api/{**rest}", () => Results.NotFound());
 
 // SPA fallback — client-routed deep links (/login, /dashboard) must serve index.html on a
 // cold GET. Lowest routing priority, so it never shadows an /api/* controller route.
-app.MapFallbackToFile("index.html");
+// Same options as above: a deep-link refresh is precisely the request that must not be
+// answered from a stale cache.
+app.MapFallbackToFile("index.html", spaStaticFiles);
 
 using (var scope = app.Services.CreateScope())
 {
