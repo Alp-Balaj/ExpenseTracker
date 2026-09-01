@@ -136,10 +136,18 @@ public sealed class CashflowProjectionService : ICashflowProjectionService
         // materialises a row once it falls due, so these are today's and
         // overdue bills). The templates contribute their computed future due
         // dates — without them the projection could only ever see what is late.
+        //
+        // Both sources drop transfers, for the reason given at the fold below:
+        // moving money between the user's own accounts never changes the liquid
+        // total. The filter has to sit on the query as well as the template
+        // loop, or a transfer would count as an outflow for exactly as long as
+        // it stayed pending and then stop counting once it was committed —
+        // a dip in the line that no money ever caused.
         var flows = new List<(DateOnly Date, PlannedKind Kind, decimal Amount, string? Code)>();
 
         var pending = await _unitOfWork.PlannedOccurrences.Query()
-            .Where(o => o.State == PlannedOccurrenceState.Pending)
+            .Where(o => o.State == PlannedOccurrenceState.Pending
+                && o.PlannedTransaction.Kind != PlannedKind.Transfer)
             .Select(o => new
             {
                 o.DueDate,

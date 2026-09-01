@@ -67,7 +67,7 @@ public sealed class CashflowProjectionTests
         string title,
         decimal amount,
         int kind,
-        Guid categoryId,
+        Guid? categoryId,
         DateOnly startDate,
         int recurrence,
         Guid? fromAccountId = null,
@@ -552,5 +552,36 @@ public sealed class CashflowProjectionTests
             accountId
         });
         response.EnsureSuccessStatusCode();
+    }
+
+    // ── Transfers ─────────────────────────────────────────────────────────
+    // A transfer is the user moving their own money from one pocket to another.
+    // The liquid total is the sum of those pockets, so it cannot move.
+
+    [Fact]
+    public async Task A_pending_planned_transfer_is_not_projected_as_an_outflow()
+    {
+        var client = await ApiClient.CreateAuthenticatedClientAsync(_factory);
+        var eurId = await ApiClient.CreateCurrencyAsync(client, "EUR", rate: 1m);
+        var checking = await CreateAccountAsync(client, eurId, balance: 1_000m, amountType: 0);
+        var savings = await CreateAccountAsync(client, eurId, balance: 0m, amountType: 1);
+
+        // Due today, so listing the occurrences materialises it as Pending.
+        await CreatePlannedAsync(
+            client, "Move to savings", 250m, kind: 2, categoryId: null,
+            startDate: Today, recurrence: 0, fromAccountId: checking, toAccountId: savings);
+        var occurrences = await GetOccurrencesAsync(client);
+        Assert.Single(occurrences.EnumerateArray());
+
+        var projection = await GetProjectionAsync(client);
+
+        // Nothing has been spent, so there is no burn to fall by either: the
+        // line is flat at the opening balance for the whole window. Before the
+        // pending query filtered transfers this read 750 from today onwards.
+        Assert.Equal(1_000m, projection.GetProperty("startingBalance").GetDecimal());
+        Assert.Equal(0m, PointAt(projection, Today).GetProperty("plannedOutflow").GetDecimal());
+        Assert.Equal(
+            1_000m, PointAt(projection, Today).GetProperty("projectedBalance").GetDecimal());
+        Assert.Equal(1_000m, projection.GetProperty("projectedEndBalance").GetDecimal());
     }
 }
