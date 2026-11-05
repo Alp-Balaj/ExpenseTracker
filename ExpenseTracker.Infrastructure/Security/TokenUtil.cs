@@ -5,6 +5,16 @@ namespace ExpenseTracker.Infrastructure.Security
 {
     public static class TokenUtil
     {
+        /// <summary>Marks a bearer value as an MCP token, and makes a leaked one greppable.</summary>
+        public const string McpTokenPrefix = "et_mcp_";
+
+        /// <summary>
+        /// Generates a raw MCP token. Hex rather than Base64, because this one is
+        /// pasted into shell commands and config files.
+        /// </summary>
+        public static string GenerateMcpToken() =>
+            McpTokenPrefix + Convert.ToHexString(RandomNumberGenerator.GetBytes(32)).ToLowerInvariant();
+
         /// <summary>
         /// Generates a cryptographically secure refresh token (raw secret).
         /// This is what you send to the client as an HttpOnly cookie.

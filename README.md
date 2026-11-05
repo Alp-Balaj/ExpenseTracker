@@ -155,6 +155,30 @@ And run the app, After startup, Swagger is available in Development at `https://
 
 This design prevents token theft and ensures long-lived sessions without exposing anything.
 
+## MCP server
+
+`POST /api/mcp` is a [Model Context Protocol](https://modelcontextprotocol.io/) server (Streamable HTTP,
+stateless) that lets an AI client read a user's finances and log transactions.
+
+**Connect.** Create a token under Settings → AI, then:
+```bash
+claude mcp add --transport http expense-tracker https://<host>/api/mcp --header "Authorization: Bearer et_mcp_..."
+```
+
+**Tools.** Reads: `list_accounts`, `list_categories`, `list_expenses`, `list_incomes`, `get_budget_status`,
+`get_spending_insights`, `get_cashflow_projection`. Writes: `log_expense`, `log_income`. There are deliberately
+no edit or delete tools.
+
+**Tokens** (`/api/McpToken`, `McpToken` entity):
+- Valid on `/api/mcp` only. `JWTServices` selects the scheme by path, so a token sent to any other route is
+  rejected, and a browser JWT is rejected on `/api/mcp`.
+- Read-only unless created with write access; the write tools check the `mcp_write` claim.
+- Stored as a SHA-256 hash peppered with `RefreshToken:Pepper`, so rotating the pepper invalidates every token.
+- No expiry. Revoked individually in settings, and all at once on password change or reset.
+
+Clients that require OAuth (claude.ai custom connectors, for example) cannot connect yet: the server only
+accepts a static bearer token.
+
 ## Currencies & conversion
 
 Each user maintains their own currencies (Currency CRUD) and picks a base currency in

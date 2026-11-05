@@ -1144,6 +1144,52 @@ namespace ExpenseTracker.Infrastructure.Migrations.Postgres
                     b.ToTable("Transfers");
                 });
 
+            modelBuilder.Entity("ExpenseTracker.Domain.Entities.User.McpToken", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("CanWrite")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastFour")
+                        .IsRequired()
+                        .HasMaxLength(4)
+                        .HasColumnType("character varying(4)");
+
+                    b.Property<DateTime?>("LastUsedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("TokenHash")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique();
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("McpTokens");
+                });
+
             modelBuilder.Entity("ExpenseTracker.Domain.Entities.User.RefreshToken", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1911,6 +1957,15 @@ namespace ExpenseTracker.Infrastructure.Migrations.Postgres
                     b.Navigation("SavingGoal");
 
                     b.Navigation("ToAccount");
+                });
+
+            modelBuilder.Entity("ExpenseTracker.Domain.Entities.User.McpToken", b =>
+                {
+                    b.HasOne("ExpenseTracker.Domain.Entities.User.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("ExpenseTracker.Domain.Entities.User.RefreshToken", b =>

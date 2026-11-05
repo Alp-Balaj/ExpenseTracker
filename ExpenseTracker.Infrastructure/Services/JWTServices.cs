@@ -1,5 +1,7 @@
 ﻿using ExpenseTracker.Domain.Entities.User;
 using ExpenseTracker.Infrastructure.Persistence;
+using ExpenseTracker.Infrastructure.Security;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
@@ -41,6 +43,15 @@ namespace ExpenseTracker.Infrastructure.Services
             })
             .AddJwtBearer(options =>
             {
+                // /api/mcp, and only /api/mcp, authenticates with an MCP token. Selecting
+                // by path rather than by token shape is the security boundary: a token
+                // presented anywhere else still reaches this handler and is rejected, so
+                // a token handed to an AI client can never touch the REST API. Done here
+                // so UseAuthentication populates the user before the rate limiter
+                // partitions on it.
+                options.ForwardDefaultSelector = context =>
+                    context.Request.Path.StartsWithSegments(McpAuthDefaults.Path) ? McpAuthDefaults.Scheme : null;
+
                 options.TokenValidationParameters = new TokenValidationParameters
                 {
                     ValidateIssuer = true,
@@ -52,7 +63,8 @@ namespace ExpenseTracker.Infrastructure.Services
                     IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
                     ClockSkew = TimeSpan.Zero
                 };
-            });
+            })
+            .AddScheme<AuthenticationSchemeOptions, McpTokenAuthenticationHandler>(McpAuthDefaults.Scheme, null);
 
             return services;
         }

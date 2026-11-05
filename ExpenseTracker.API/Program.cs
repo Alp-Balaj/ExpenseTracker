@@ -1,12 +1,16 @@
 ﻿using ExpenseTracker.API.Extensions;
+using ExpenseTracker.API.Mcp;
 using ExpenseTracker.API.Middleware;
 using ExpenseTracker.API.Services;
 using ExpenseTracker.Application.DependencyInjection;
 using ExpenseTracker.Infrastructure.DependencyInjections;
 using ExpenseTracker.Infrastructure.Persistence;
+using ExpenseTracker.Infrastructure.Security;
 using ExpenseTracker.Infrastructure.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using ModelContextProtocol.Protocol;
 using System.Security.Claims;
 using System.Threading.RateLimiting;
 
@@ -40,6 +44,22 @@ builder.Services.AddReactCors(builder.Configuration);
 //Self-disables when Scheduler:Enabled is false (the test suite sets that), so it is
 //registered unconditionally and decides for itself whether to do any work.
 builder.Services.AddHostedService<SchedulerHostedService>();
+//MCP server: lets an AI client read the user's finances and log transactions.
+//Stateless on purpose: each tool call then runs inside its own POST, which is what
+//keeps HttpContext, and so every user-scoped repository, correct. It also means a
+//Railway redeploy cannot strand a client on a session that no longer exists.
+builder.Services.AddMcpServer(options =>
+    {
+        options.ServerInfo = new Implementation { Name = "expense-tracker", Version = "1.0.0" };
+        options.ServerInstructions =
+            "ExpenseTracker holds one person's real finances. Balances and transaction amounts are in " +
+            "each account's own currency, so never add them across currencies; budgets, insights and the " +
+            "cashflow projection are already in the user's base currency. Dates are YYYY-MM-DD. Start with " +
+            "list_accounts and list_categories to get the ids the other tools need. log_expense and " +
+            "log_income move real balances and cannot be undone from here.";
+    })
+    .WithHttpTransport(options => options.Stateless = true)
+    .WithTools<ExpenseTrackerTools>();
 //Global exception -> ProblemDetails mapping (400/404/409/500)
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
@@ -146,6 +166,9 @@ app.UseAuthentication();
 app.UseRateLimiter();
 app.UseAuthorization();
 app.MapControllers();
+// Pinned to the MCP scheme so a browser session's JWT is no way in either.
+app.MapMcp(McpAuthDefaults.Path)
+    .RequireAuthorization(new AuthorizeAttribute { AuthenticationSchemes = McpAuthDefaults.Scheme });
 app.MapGet("/health", () => Results.Ok("OK"));
 
 // An unmatched path under /api is a genuine 404, not a page. Without this the SPA fallback

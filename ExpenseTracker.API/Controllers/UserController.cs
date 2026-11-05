@@ -33,9 +33,10 @@ namespace ExpenseTracker.API.Controllers
         private readonly IUserDataSeeder _seeder;
         private readonly IEmailSender _emailSender;
         private readonly IPotService _pots;
+        private readonly IMcpTokenService _mcpTokens;
         private readonly ILogger<UserController> _logger;
 
-        public UserController(UserManager<User> userManager, SignInManager<User> signInManager, IConfiguration configuration, IRefreshTokenRepository refreshTokenRepository, IUnitOfWork unitOfWork, IUserDataSeeder seeder, IEmailSender emailSender, IPotService pots, ILogger<UserController> logger)
+        public UserController(UserManager<User> userManager, SignInManager<User> signInManager, IConfiguration configuration, IRefreshTokenRepository refreshTokenRepository, IUnitOfWork unitOfWork, IUserDataSeeder seeder, IEmailSender emailSender, IPotService pots, IMcpTokenService mcpTokens, ILogger<UserController> logger)
         {
             _userManager = userManager;
             _signInManager = signInManager;
@@ -45,6 +46,7 @@ namespace ExpenseTracker.API.Controllers
             _seeder = seeder;
             _emailSender = emailSender;
             _pots = pots;
+            _mcpTokens = mcpTokens;
             _logger = logger;
         }
 
@@ -290,6 +292,7 @@ namespace ExpenseTracker.API.Controllers
             // the user logs in again with the new password.
             await _refreshTokenRepository.RevokeAllActiveForUserAsync(user.Id);
             await _refreshTokenRepository.SaveAsync();
+            await _mcpTokens.RevokeAllForUserAsync(user.Id);
             ClearRefreshCookie();
 
             _logger.LogInformation("Password changed for user {UserId}; all refresh tokens revoked", user.Id);
@@ -361,6 +364,7 @@ namespace ExpenseTracker.API.Controllers
             // password (possibly the attacker's reason the user is resetting) die now.
             await _refreshTokenRepository.RevokeAllActiveForUserAsync(user.Id);
             await _refreshTokenRepository.SaveAsync();
+            await _mcpTokens.RevokeAllForUserAsync(user.Id);
 
             _logger.LogInformation("Password reset completed for user {UserId}; all refresh tokens revoked", user.Id);
 

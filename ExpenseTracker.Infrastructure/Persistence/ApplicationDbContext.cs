@@ -50,6 +50,7 @@ namespace ExpenseTracker.Infrastructure.Persistence
         public DbSet<SavingContribution> SavingContributions { get; set; }
         public DbSet<Transfer> Transfers { get; set; }
         public DbSet<RefreshToken> RefreshTokens { get; set; }
+        public DbSet<McpToken> McpTokens { get; set; }
         public DbSet<UserPreferences> UserPreferences { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)

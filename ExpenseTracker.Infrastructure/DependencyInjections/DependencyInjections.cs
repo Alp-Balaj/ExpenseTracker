@@ -42,6 +42,7 @@ public static class DependencyInjection
         // by "pots this user is currently a member of"; see IPotRepository.
         services.AddScoped<IPotRepository, PotRepository>();
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
+        services.AddScoped<IMcpTokenService, McpTokenService>();
         // Sugg-6: CSV import. In Infrastructure because both phases need the
         // database — duplicate detection reads the account's existing rows, and
         // the commit writes many of them in one transaction.
