@@ -3,15 +3,17 @@
 One deployed app: the API container serves the built SPA from `wwwroot`, the controllers
 already live under `/api/*` so the SPA calls them same-origin, and Railway Postgres is the
 only database — user preferences moved into it in Suggestion-10. The image is built by
-`.github/workflows/deploy.yml` from **both** repos and pushed to GHCR; Railway redeploys
-from `ghcr.io/<owner>/expensetracker:latest`.
+`.github/workflows/deploy.yml` from **both** repos and pushed to GHCR; the workflow then points
+the Railway service at that run's exact tag (`:deploy-<run_id>`) and starts a new deployment
+(`.github/scripts/railway-deploy.sh`). It does not use `railway redeploy`: that re-runs the
+previous deployment's image and never picks up a new `:latest`.
 
 ```
 expense-tracker-front push (master) ──repository_dispatch──▶ deploy.yml ◀── ExpenseTracker push (master)
                                                                  │ docker build (SPA + API)
                                                                  ▼
                                                  ghcr.io/<owner>/expensetracker:latest
-                                                                 │ railway redeploy
+                                                                 │ pin :deploy-<run_id> + deploy
                                                                  ▼
                           Browser ──▶ Railway service ──▶ Railway Postgres (migrated at startup)
 ```

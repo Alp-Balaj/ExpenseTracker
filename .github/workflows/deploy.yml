@@ -92,15 +92,20 @@ jobs:
           context: .
           file: backend/Dockerfile
           push: true
+          # deploy-<run_id> is unique per run. A frontend-triggered run builds the same
+          # backend sha with a new SPA, so the sha tag alone is not a unique pointer.
           tags: |
             ${{ env.IMAGE }}:latest
             ${{ env.IMAGE }}:${{ github.sha }}
+            ${{ env.IMAGE }}:deploy-${{ github.run_id }}
 
-      - name: Redeploy Railway service
+      # Pins the service to this run's image and starts a NEW deployment, then waits for it.
+      # `railway redeploy` was used here before and re-ran the previous deployment's image,
+      # which left production on the 2026-08-06 build. See .github/scripts/railway-deploy.sh.
+      - name: Deploy to Railway
         if: env.HAS_RAILWAY == 'true'
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
           RAILWAY_SERVICE_ID: ${{ secrets.RAILWAY_SERVICE_ID }}
-        run: |
-          npm install -g @railway/cli
-          railway redeploy --service "$RAILWAY_SERVICE_ID" --yes
+          DEPLOY_IMAGE: ${{ env.IMAGE }}:deploy-${{ github.run_id }}
+        run: backend/.github/scripts/railway-deploy.sh
