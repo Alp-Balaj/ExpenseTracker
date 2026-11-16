@@ -176,8 +176,15 @@ no edit or delete tools.
 - Stored as a SHA-256 hash peppered with `RefreshToken:Pepper`, so rotating the pepper invalidates every token.
 - No expiry. Revoked individually in settings, and all at once on password change or reset.
 
-Clients that require OAuth (claude.ai custom connectors, for example) cannot connect yet: the server only
-accepts a static bearer token.
+**OAuth** (claude.ai and Claude Desktop custom connectors): add `https://<host>/api/mcp` as a connector and sign
+in when asked. The server is its own authorization server: a 401 points at
+`/.well-known/oauth-protected-resource`, which names `/.well-known/oauth-authorization-server`; clients register
+through `/api/oauth/register` (RFC 7591) or identify themselves with a client metadata document URL; the browser
+goes to the SPA's `/oauth/authorize` consent page; `/api/oauth/token` swaps the code (PKCE S256 required) for a
+one-hour access token and a rotating 60-day refresh token. Access tokens are `McpToken` rows with an expiry
+(`OAuthClientId` set), so everything above applies to them too: `/api/mcp` only, listed and revocable in
+settings, revoked on password change. Write access is a checkbox on the consent screen, off by default.
+`OAuth:PublicOrigin` pins the issuer if the request's host/scheme ever cannot be trusted to give it.
 
 ## Currencies & conversion
 
