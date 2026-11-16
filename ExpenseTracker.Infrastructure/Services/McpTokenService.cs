@@ -36,7 +36,8 @@ public sealed class McpTokenService : IMcpTokenService
                 LastFour = t.LastFour,
                 CanWrite = t.CanWrite,
                 CreatedAt = t.CreatedAt,
-                LastUsedAtUtc = t.LastUsedAtUtc
+                LastUsedAtUtc = t.LastUsedAtUtc,
+                ViaOAuth = t.OAuthClientId != null
             })
             .ToListAsync(cancellationToken);
     }
@@ -45,7 +46,8 @@ public sealed class McpTokenService : IMcpTokenService
     {
         var userId = _currentUser.UserId;
 
-        var held = await _context.McpTokens.CountAsync(t => t.UserId == userId, cancellationToken);
+        // Only pasted tokens count: OAuth connections are capped separately, in OAuthService.
+        var held = await _context.McpTokens.CountAsync(t => t.UserId == userId && t.OAuthClientId == null, cancellationToken);
         if (held >= McpTokenLimits.MaxTokensPerUser) return null;
 
         var raw = TokenUtil.GenerateMcpToken();
@@ -83,6 +85,11 @@ public sealed class McpTokenService : IMcpTokenService
         return removed > 0;
     }
 
-    public Task RevokeAllForUserAsync(string userId, CancellationToken cancellationToken = default) =>
-        _context.McpTokens.Where(t => t.UserId == userId).ExecuteDeleteAsync(cancellationToken);
+    public async Task RevokeAllForUserAsync(string userId, CancellationToken cancellationToken = default)
+    {
+        // Covers OAuth connections too (same table). Outstanding authorization codes go
+        // as well, or one approved moments before a password reset could still be redeemed.
+        await _context.McpTokens.Where(t => t.UserId == userId).ExecuteDeleteAsync(cancellationToken);
+        await _context.OAuthAuthorizationCodes.Where(c => c.UserId == userId).ExecuteDeleteAsync(cancellationToken);
+    }
 }

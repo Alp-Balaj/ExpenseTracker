@@ -51,6 +51,9 @@ namespace ExpenseTracker.Infrastructure.Persistence
         public DbSet<Transfer> Transfers { get; set; }
         public DbSet<RefreshToken> RefreshTokens { get; set; }
         public DbSet<McpToken> McpTokens { get; set; }
+        // OAuth for MCP clients (claude.ai). OAuthClient is not user-owned — see its summary.
+        public DbSet<OAuthClient> OAuthClients { get; set; }
+        public DbSet<OAuthAuthorizationCode> OAuthAuthorizationCodes { get; set; }
         public DbSet<UserPreferences> UserPreferences { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)

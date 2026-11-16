@@ -60,8 +60,10 @@ public sealed class McpTokenAuthenticationHandler : AuthenticationHandler<Authen
         var hash = TokenUtil.HashRefreshToken(raw, _configuration["RefreshToken:Pepper"]);
         var cancellationToken = Context.RequestAborted;
 
+        var now = DateTime.UtcNow;
         var match = await _context.McpTokens.AsNoTracking()
-            .Where(t => t.TokenHash == hash)
+            // ExpiresAtUtc is null for pasted tokens, which never expire.
+            .Where(t => t.TokenHash == hash && (t.ExpiresAtUtc == null || t.ExpiresAtUtc > now))
             .Join(_context.Users, t => t.UserId, u => u.Id, (t, u) => new
             {
                 t.Id,
@@ -73,9 +75,8 @@ public sealed class McpTokenAuthenticationHandler : AuthenticationHandler<Authen
             .FirstOrDefaultAsync(cancellationToken);
 
         if (match is null)
-            return AuthenticateResult.Fail("Unknown MCP token.");
+            return AuthenticateResult.Fail("Unknown or expired MCP token.");
 
-        var now = DateTime.UtcNow;
         if (match.LastUsedAtUtc is null || match.LastUsedAtUtc <= now - LastUsedResolution)
         {
             await _context.McpTokens
@@ -94,10 +95,22 @@ public sealed class McpTokenAuthenticationHandler : AuthenticationHandler<Authen
         return AuthenticateResult.Success(new AuthenticationTicket(principal, Scheme.Name));
     }
 
-    protected override Task HandleChallengeAsync(AuthenticationProperties properties)
+    /// <summary>
+    /// Points the client at the protected-resource metadata (RFC 9728 §5.1). That is
+    /// how an OAuth client such as claude.ai discovers where to sign in; a client
+    /// holding a pasted token ignores it. A token that was presented but rejected
+    /// gets error="invalid_token", which tells an OAuth client to refresh.
+    /// </summary>
+    protected override async Task HandleChallengeAsync(AuthenticationProperties properties)
     {
+        var metadata = OAuthDefaults.ResourceMetadataUrl(Request, _configuration);
+        var challenge = $"Bearer resource_metadata=\"{metadata}\"";
+
+        var result = await HandleAuthenticateOnceSafeAsync();
+        if (result.Failure is not null)
+            challenge += ", error=\"invalid_token\"";
+
         Response.StatusCode = 401;
-        Response.Headers[HeaderNames.WWWAuthenticate] = "Bearer";
-        return Task.CompletedTask;
+        Response.Headers[HeaderNames.WWWAuthenticate] = challenge;
     }
 }

@@ -18,6 +18,12 @@ namespace ExpenseTracker.Infrastructure.Persistence.Configurations
             builder.Property(x => x.LastFour).IsRequired().HasMaxLength(4);
 
             builder.HasIndex(x => x.TokenHash).IsUnique();
+
+            // CIMD client ids are URLs, hence the generous length.
+            builder.Property(x => x.OAuthClientId).HasMaxLength(2048);
+            // Unique like TokenHash; Postgres allows any number of NULLs in a unique index,
+            // so pasted tokens (which have no refresh token) never collide.
+            builder.HasIndex(x => x.RefreshTokenHash).IsUnique();
         }
     }
 }

@@ -124,7 +124,11 @@ public sealed class McpServerTests
         var response = await _factory.CreateClient().SendAsync(RawPost(null));
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
-        Assert.Equal("Bearer", response.Headers.WwwAuthenticate.ToString());
+        // Points OAuth clients at the protected-resource metadata (RFC 9728 §5.1).
+        var challenge = Assert.Single(response.Headers.WwwAuthenticate);
+        Assert.Equal("Bearer", challenge.Scheme);
+        Assert.Contains("resource_metadata=\"http://localhost/.well-known/oauth-protected-resource/api/mcp\"", challenge.Parameter);
+        Assert.DoesNotContain("invalid_token", challenge.Parameter);
     }
 
     [Fact]

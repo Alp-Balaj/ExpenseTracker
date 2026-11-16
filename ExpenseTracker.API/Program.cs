@@ -8,6 +8,7 @@ using ExpenseTracker.Infrastructure.Persistence;
 using ExpenseTracker.Infrastructure.Security;
 using ExpenseTracker.Infrastructure.Services;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using ModelContextProtocol.Protocol;
@@ -91,6 +92,17 @@ builder.Services.AddRateLimiter(options =>
                 Window = authRateLimitWindow,
                 QueueLimit = 0
             }));
+    // Dynamic client registration is open by design (MCP clients register themselves),
+    // so cap how fast anyone can fill the OAuthClients table.
+    options.AddPolicy("oauth-register", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = builder.Configuration.GetValue<int?>("RateLimiting:OAuthRegister:PermitLimit") ?? 30,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0
+            }));
     options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
         RateLimitPartition.GetFixedWindowLimiter(
             partitionKey: httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier)
@@ -106,6 +118,17 @@ builder.Services.AddRateLimiter(options =>
 #endregion
 
 var app = builder.Build();
+
+// Railway ends TLS at its proxy and forwards plain http, so Request.Scheme is "http"
+// unless corrected. The OAuth metadata builds absolute URLs from it, and an issuer or
+// endpoint advertised as http:// would be refused by every client. Only the scheme is
+// taken from the proxy: trusting X-Forwarded-For as well would change what the rate
+// limiters partition on. Any proxy is trusted because the container is only reachable
+// through Railway's.
+var forwarded = new ForwardedHeadersOptions { ForwardedHeaders = ForwardedHeaders.XForwardedProto };
+forwarded.KnownNetworks.Clear();
+forwarded.KnownProxies.Clear();
+app.UseForwardedHeaders(forwarded);
 
 app.UseCustomSwagger(app.Environment.IsDevelopment());
 app.UseExceptionHandler();

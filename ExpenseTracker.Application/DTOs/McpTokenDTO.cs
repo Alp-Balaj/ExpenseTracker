@@ -28,6 +28,12 @@ namespace ExpenseTracker.Application.DTOs
         public bool CanWrite { get; init; }
         public DateTime CreatedAt { get; init; }
         public DateTime? LastUsedAtUtc { get; init; }
+
+        /// <summary>
+        /// True for a connection made by signing in through OAuth (claude.ai), whose
+        /// access token rotates, so LastFour identifies nothing the user ever saw.
+        /// </summary>
+        public bool ViaOAuth { get; init; }
     }
 
     /// <summary>The only response that ever carries the raw token.</summary>

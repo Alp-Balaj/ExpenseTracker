@@ -2,6 +2,7 @@
 using ExpenseTracker.Application.Options;
 using ExpenseTracker.Domain.Interfaces;
 using ExpenseTracker.Infrastructure.Jobs;
+using ExpenseTracker.Infrastructure.OAuth;
 using ExpenseTracker.Infrastructure.Persistence;
 using ExpenseTracker.Infrastructure.Repositories;
 using ExpenseTracker.Infrastructure.Services;
@@ -43,6 +44,11 @@ public static class DependencyInjection
         services.AddScoped<IPotRepository, PotRepository>();
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
         services.AddScoped<IMcpTokenService, McpTokenService>();
+        // OAuth in front of /api/mcp, for clients that cannot take a pasted token (claude.ai).
+        services.AddScoped<OAuthService>();
+        services.AddScoped<ClientMetadataDocumentFetcher>();
+        services.AddHttpClient(ClientMetadataDocumentFetcher.HttpClientName, client => client.Timeout = TimeSpan.FromSeconds(5))
+            .ConfigurePrimaryHttpMessageHandler(ClientMetadataDocumentFetcher.CreateHandler);
         // Sugg-6: CSV import. In Infrastructure because both phases need the
         // database — duplicate detection reads the account's existing rows, and
         // the commit writes many of them in one transaction.
